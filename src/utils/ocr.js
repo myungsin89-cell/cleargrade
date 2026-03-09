@@ -6,7 +6,7 @@
 let model = null;
 
 // MNIST 모델 URL (Google이 제공하는 공개 모델)
-const MODEL_URL = 'https://storage.googleapis.com/tfjs-models/tfjs/mnist_math/model.json';
+const MODEL_URL = 'https://raw.githubusercontent.com/google/tfjs-mnist-workshop/master/model/model.json';
 
 /**
  * TensorFlow.js 숫자 인식 모델 초기화
@@ -26,7 +26,7 @@ export async function initTesseract() { // 기존 호환성을 위해 이름 유
         console.log('[OCR] TensorFlow 모델 로드 완료');
         
         // Warmup (최초 추론 속도 향상을 위한 빈 텐서 실행)
-        const dummyInput = window.tf.zeros([1, 28, 28, 1]);
+        const dummyInput = window.tf.zeros([1, 784]);
         model.predict(dummyInput);
         dummyInput.dispose();
         
@@ -55,9 +55,9 @@ export async function recognizeDigit(dataUrl) {
                 // 1. 이미지를 텐서로 변환 (shape: [H, W, 4])
                 const tensorObj = window.tf.browser.fromPixels(img, 1); // 1채널 흑백으로 불러옴
                 
-                // 2. 모델 입력 규격(배치 크기 1, 28, 28, 1)으로 리쉐이프하고 정규화
-                // MNIST 모델은 0~1 사이의 float32 값을 기대합니다.
-                const batched = tensorObj.expandDims(0).toFloat().div(window.tf.scalar(255));
+                // 2. 모델 입력 규격(배치 크기 1, 784 플래튼)으로 리쉐이프하고 정규화
+                // MNIST Dense 모델은 0~1 사이의 float32 값, 1D 배열을 기대합니다.
+                const batched = tensorObj.toFloat().div(window.tf.scalar(255)).reshape([1, 784]);
                 
                 // 3. 예측 수행
                 const result = model.predict(batched);
