@@ -389,7 +389,7 @@ export function getQuestionBoxDefs(settings) {
     const startY = 75; // 15mm padding + 10mm header-mt + 50mm header height
 
     const colW = 56.66; // (210 - 30 - 10) / 3
-    const rowH = 23; 
+    const rowH = 14;    // 7.5mm row height + 6.5mm row-gap
 
     settings.subjects.forEach(subject => {
         defs[subject.id] = {};
@@ -400,7 +400,7 @@ export function getQuestionBoxDefs(settings) {
             // OMR areas are wider. 
             // `q-num` text is width 10mm + 2mm margin (approx 12-14 mm offset).
             const boxStartX = startX + (col * colW) + 14; 
-            const boxStartY = startY + (row * rowH) + 4; // Center vertically on the line
+            const boxStartY = startY + (row * rowH) + 1; // Center vertically on the line
             const boxW = 8.5 * settings.choiceCount; // Box width scales with choiceCount, approx 8.5mm per choice
             const boxH = 9; // Height to capture 6.5mm circles
 

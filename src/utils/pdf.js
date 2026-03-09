@@ -123,7 +123,7 @@ export function generateAnswerSheets(settings, students) {
       .q-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        row-gap: 8mm;
+        row-gap: 6.5mm;
         column-gap: 5mm;
         margin: 0 5mm;
       }
@@ -131,8 +131,8 @@ export function generateAnswerSheets(settings, students) {
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        font-size: 14pt;
-        height: 15mm;
+        font-size: 13pt;
+        height: 7.5mm;
       }
       .q-num {
         width: 10mm;
@@ -159,11 +159,11 @@ export function generateAnswerSheets(settings, students) {
       
       .instructions {
         position: absolute;
-        bottom: 25mm;
+        bottom: 15mm;
         left: 20mm;
         right: 20mm;
         text-align: center;
-        font-size: 12pt;
+        font-size: 11pt;
         color: #333;
         border-top: 1px solid #ccc;
         padding-top: 5mm;
