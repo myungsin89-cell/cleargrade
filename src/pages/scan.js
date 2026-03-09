@@ -165,6 +165,8 @@ export async function renderScan(container, settings) {
           const res = await recognizeDigit(digitDataUrl);
           stNumTextStr += res.text;
           if (res.confidence < minConf) minConf = res.confidence;
+          // 약간의 딜레이 추가 (API Rate Limit 방지)
+          await new Promise(r => setTimeout(r, 50));
         }
         
         const stNumText = stNumTextStr;
@@ -176,7 +178,7 @@ export async function renderScan(container, settings) {
           identifiedStudent = students.find(s => s.number === pNum);
         }
 
-        // 이름 식별 추가 (MNIST 모델은 한글 인식을 지원하지 않으므로 건너뜀)
+        // 이름 식별 추가 (Google Vision은 한글 이름도 잘 인식합니다. 현재 MVP 스펙 유지 위해 주석처리)
         // const nameDataUrl = extractBox(img, studentNameBoxDef);
         // const { text: stNameText, confidence: stNameConf } = await recognizeWord(nameDataUrl);
         const stNameText = '';
@@ -219,6 +221,9 @@ export async function renderScan(container, settings) {
             confidence: ocrRes.confidence,
             boxImage: qDataUrl // 잘라낸 이진화 이미지 (리뷰용)
           };
+          
+          // 약간의 딜레이 추가 (API Rate Limit 방지)
+          await new Promise(r => setTimeout(r, 50));
         }
 
         // 3. 결과 저장
@@ -237,8 +242,13 @@ export async function renderScan(container, settings) {
         logMsg(`✔ 저장 완료: ${file.name}`);
 
       } catch (err) {
-        console.error(err);
-        logMsg(`❌ 오류 발생 (${file.name}): ${err.message}`);
+        if (err.message.includes('API 키')) {
+            logMsg(`<span style="color:var(--danger-color)">❌ 중단됨: ${err.message}</span>`);
+            break; // API키가 없으면 나머지 파일도 시도 안 함
+        } else {
+            console.error(err);
+            logMsg(`❌ 오류 발생 (${file.name}): ${err.message}`);
+        }
       }
     }
 

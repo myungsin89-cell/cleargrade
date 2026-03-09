@@ -92,6 +92,7 @@ const DEFAULT_SETTINGS = {
   examName: '진단평가',
   className: '',
   choiceCount: 4,
+  googleApiKey: '',
   subjects: [
     { id: 'sub1', name: '국어', questionCount: 20 },
     { id: 'sub2', name: '수학', questionCount: 20 },

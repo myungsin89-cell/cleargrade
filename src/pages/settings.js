@@ -51,6 +51,7 @@ export function renderSettings(container, settings) {
     // Update local config before saving
     localSettings.examName = document.getElementById('examName').value;
     localSettings.choiceCount = parseInt(document.getElementById('choiceCount').value, 10);
+    localSettings.googleApiKey = document.getElementById('googleApiKey').value;
 
     // Update subjects
     localSettings.subjects.forEach((sub, index) => {
@@ -91,6 +92,10 @@ export function renderSettings(container, settings) {
               <option value="4" ${localSettings.choiceCount === 4 ? 'selected' : ''}>4개 (①~④)</option>
               <option value="5" ${localSettings.choiceCount === 5 ? 'selected' : ''}>5개 (①~⑤)</option>
             </select>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label for="googleApiKey">Google Cloud Vision API 키 <span style="font-size: 0.8em; color: var(--text-muted); font-weight: normal;">(미입력 시 기본 엔진 사용 불가)</span></label>
+            <input type="password" id="googleApiKey" value="${localSettings.googleApiKey || ''}" placeholder="AIzsyA...">
           </div>
         </div>
       </div>
