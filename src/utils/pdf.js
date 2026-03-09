@@ -84,38 +84,47 @@ export function generateAnswerSheets(settings, students) {
       .header {
         text-align: center;
         margin-top: 10mm;
-        margin-bottom: 20mm;
+        height: 50mm;
+        position: relative;
       }
       .header h1 {
         font-size: 24pt;
-        margin-bottom: 5mm;
+        margin: 0;
+        padding-top: 5mm;
         letter-spacing: 2px;
       }
       .header h2 {
         font-size: 18pt;
         font-weight: normal;
-        margin-bottom: 10mm;
+        margin: 5mm 0 0 0;
       }
       .student-info {
+        position: absolute;
+        bottom: 5mm;
+        right: 15mm;
         display: flex;
-        justify-content: flex-end;
-        gap: 20px;
+        gap: 15px;
         font-size: 14pt;
-        margin-right: 15mm;
       }
-      .student-info span {
+      .student-number-box, .student-name-box {
+        display: flex;
+        align-items: center;
+      }
+      .student-val {
         border-bottom: 1px solid black;
-        padding: 0 10px;
-        min-width: 80px;
+        width: 30mm;
+        height: 8mm;
         display: inline-block;
         text-align: center;
+        margin-left: 5px;
       }
 
       /* Question Grid */
       .q-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 15px 10px;
+        row-gap: 8mm;
+        column-gap: 0;
         margin: 0 10mm;
       }
       .q-item {
@@ -123,16 +132,17 @@ export function generateAnswerSheets(settings, students) {
         align-items: center;
         justify-content: center;
         font-size: 14pt;
+        height: 15mm;
       }
       .q-num {
-        width: 30px;
+        width: 10mm;
         text-align: right;
-        margin-right: 15px;
+        margin-right: 5mm;
         font-weight: bold;
       }
       .q-box {
-        width: 1.5cm;
-        height: 1.5cm;
+        width: 15mm;
+        height: 15mm;
         border: 2px solid black;
         display: flex;
         align-items: center;
@@ -176,8 +186,8 @@ export function generateAnswerSheets(settings, students) {
             <h2>- ${subject.name} -</h2>
             
             <div class="student-info">
-              <div>번호: <span>${student.number}</span></div>
-              <div>이름: <span>${student.name}</span></div>
+              <div class="student-number-box">번호: <span class="student-val">${student.number}</span></div>
+              <div class="student-name-box">이름: <span class="student-val">${student.name}</span></div>
             </div>
           </div>
 
@@ -186,12 +196,8 @@ export function generateAnswerSheets(settings, students) {
 
       // Render question boxes
       for (let i = 1; i <= subject.questionCount; i++) {
-        // Add extra bottom margin every 5 items (which is 1 full row since grid has 5 columns)
-        // This creates a visual break for easier reading/grading
-        const extraSpacing = (i % 5 === 0 && i !== subject.questionCount) ? 'margin-bottom: 24px;' : '';
-
         html += `
-          <div class="q-item" style="${extraSpacing}">
+          <div class="q-item">
             <div class="q-num">${i}.</div>
             <div class="q-box" data-q="${i}"></div>
           </div>

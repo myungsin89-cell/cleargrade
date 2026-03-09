@@ -76,10 +76,6 @@ export function extractBox(img, boxDef) {
     return canvas.toDataURL('image/png');
 }
 
-/**
- * PDF 생성 로직(pdf.js)의 물리적 길이를 기반으로 상대적 비율 산출
- * mm 단위를 기반으로 화면(0~1) 비율을 계산합니다.
- */
 export function getQuestionBoxDefs(settings) {
     const A4_W = 210;
     const A4_H = 297;
@@ -87,21 +83,12 @@ export function getQuestionBoxDefs(settings) {
 
     const defs = {};
 
-    // .q-grid 는 margin: 0 10mm;
-    // padding 15mm 가 있으므로, grid의 시작 X = 15 + 10 = 25mm 
-    // grid의 총 너비 = 210 - (15*2) - (10*2) = 160mm
+    // Exact grid physical start
+    const startX = 25; // 15mm padding + 10mm margin
+    const startY = 75; // 15mm padding + 10mm header-mt + 50mm header height
 
-    // CSS Grid: repeat(5, 1fr), gap: 15px 10px (row gap, column gap)
-    // 15px/10px 을 mm로 환산해 추정하기 보다, 균등 분할로 근사치 적용 (OCR은 여유 있게 잡음)
-
-    const startX = 25 / A4_W;
-    // 눈대중으로 헤더 높이는 대략 60mm 정도 차지 (padding 15 + margin-top 10 + h1/h2 30 + mb 20 ? 좀 짧게)
-    // 안전하게 실제 그려진 DOM 비율을 모방하는 방식을 채택
-    // 여기서는 대략적인 비율로 Grid 위치를 정의합니다.
-    const startY = 75 / A4_H;
-
-    const colW = (160 / cols) / A4_W;
-    const rowH = 20 / A4_H; // 대략 행당 높이
+    const colW = 32; // (210 - 30 - 20) / 5
+    const rowH = 23; // 15mm q-box + 8mm row gap
 
     settings.subjects.forEach(subject => {
         defs[subject.id] = {};
@@ -109,12 +96,11 @@ export function getQuestionBoxDefs(settings) {
             const row = Math.floor((i - 1) / cols);
             const col = (i - 1) % cols;
 
-            // 문제 칸(q-box)은 아이템의 오른쪽에 위치
-            // q-num 폭, 간격 제외하고 대략 아이템 너비의 우측 60% 로 가정
+            // Box start inside column = 10(num) + 5(margin) + 1(flex-center padding)
             defs[subject.id][i] = {
-                x: startX + (col * colW) + (colW * 0.4),
-                y: startY + (row * rowH),
-                w: 15 / A4_W, // 실제 1.5cm 박스
+                x: (startX + (col * colW) + 16) / A4_W,
+                y: (startY + (row * rowH)) / A4_H,
+                w: 15 / A4_W,
                 h: 15 / A4_H
             };
         }
@@ -123,15 +109,23 @@ export function getQuestionBoxDefs(settings) {
     return defs;
 }
 
-// 학생 번호 칸 위치 추정 (우상단)
+// 학생 번호 칸 위치
 export const studentNumberBoxDef = {
-    x: 150 / 210,
-    y: 40 / 297,
-    w: 30 / 210,
-    h: 15 / 297
+    x: 95 / 210,
+    y: 58 / 297,
+    w: 40 / 210,
+    h: 14 / 297
 };
 
-// 과목명 칸 위치 추정
+// 학생 이름 칸 위치
+export const studentNameBoxDef = {
+    x: 145 / 210,
+    y: 58 / 297,
+    w: 40 / 210,
+    h: 14 / 297
+};
+
+// 과목명 칸 위치 추정 (현재 미사용)
 export const subjectTitleBoxDef = {
     x: 0,
     y: 25 / 297,
