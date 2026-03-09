@@ -1,6 +1,6 @@
 import { getSettings, getStudents, saveScanResult } from '../store.js';
-import { loadImageFromFile, extractBox, analyzeOmrBox, getQuestionBoxDefs, studentNumberBoxDef, studentNameBoxDef } from '../utils/imageProcess.js';
-import { initTesseract, recognizeDigit, recognizeWord, terminateTesseract } from '../utils/ocr.js';
+import { loadImageFromFile, extractBox, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef } from '../utils/imageProcess.js';
+import { initTesseract, recognizeWord, terminateTesseract } from '../utils/ocr.js';
 
 export async function renderScan(container, settings) {
   const students = await getStudents();
@@ -157,45 +157,42 @@ export async function renderScan(container, settings) {
       try {
         const img = await loadImageFromFile(file);
 
-        // 1. 학생 출석번호 식별 (OCR) - 다중 숫자 분할 지원
-        const numDataUrls = extractBox(img, studentNumberBoxDef, false, true);
-        let stNumTextStr = '';
-        let minConf = 100;
+        // 1. 전체 헤더 영역 OCR 추출 (과목명, 번호 등 식별)
+        const headerDataUrl = extractBox(img, headerBoxDef, false, false);
+        const { text: headerText, confidence: headerConf } = await recognizeWord(headerDataUrl);
         
-        for (let digitDataUrl of numDataUrls) {
-          const res = await recognizeDigit(digitDataUrl);
-          stNumTextStr += res.text;
-          if (res.confidence < minConf) minConf = res.confidence;
-          // 약간의 딜레이 추가 (API Rate Limit 방지)
-          await new Promise(r => setTimeout(r, 50));
-        }
-        
-        const stNumText = stNumTextStr;
-        const stNumConf = numDataUrls.length > 0 ? minConf : 0;
-
+        let pNum = 0;
         let identifiedStudent = null;
-        let pNum = parseInt(stNumText, 10);
-        if (!isNaN(pNum)) {
-          identifiedStudent = students.find(s => s.number === pNum);
-        }
+        let targetSubject = settings.subjects[0]; // 기본값
 
-        // 이름 식별 추가 (Google Vision은 한글 이름도 잘 인식합니다. 현재 MVP 스펙 유지 위해 주석처리)
-        // const nameDataUrl = extractBox(img, studentNameBoxDef);
-        // const { text: stNameText, confidence: stNameConf } = await recognizeWord(nameDataUrl);
-        const stNameText = '';
-        const stNameConf = 0;
+        if (headerText) {
+          logMsg(`[OCR 헤더 식별중] 추출 텍스트: ${headerText}`);
+          
+          // 학번 추출 (정규식: '번호', '과목', ':', 숫자 등 유연하게 매칭)
+          // 공백이 제거된 상태이므로 "번호:12" 또는 "번호12" 형태가 됩니다.
+          const numMatch = headerText.match(/번[호]?[:;ㅣ\-\_]*(\d+)/) || headerText.match(/(\d+)/);
+          if (numMatch && numMatch[1]) {
+            pNum = parseInt(numMatch[1], 10);
+            identifiedStudent = students.find(s => s.number === pNum);
+          }
+
+          // 과목 추출 (settings.subjects 의 name 중 매칭되는 것이 있는지 확인)
+          for (let sub of settings.subjects) {
+            // 텍스트에 과목명이 포함되어있다면 해당 과목으로 식별
+            if (headerText.includes(sub.name)) {
+                targetSubject = sub;
+                break;
+            }
+          }
+        }
 
         if (!identifiedStudent) {
-          logMsg(`[경고] 식별 불확실 (입력결과 - 번호: ${stNumText}). 검수화면에서 수동 지정이 필요합니다.`);
-          // 일단 미지정(0)으로 저장
+          logMsg(`[경고] 학생 식별 불확실 (입력결과: ${headerText}). 검수화면에서 수동 지정이 필요합니다.`);
           pNum = 0;
         } else {
-          logMsg(`✔ 학생 식별: ${identifiedStudent.number}번 ${identifiedStudent.name} (신뢰도: 번호 ${Math.round(stNumConf)}%)`);
+          logMsg(`✔ 학생 식별: ${identifiedStudent.number}번 ${identifiedStudent.name}`);
         }
-
-        // MVP에서는 한 장이 한 과목(우선 첫번째 과목)이라고 가정, 사용자가 스캔 후 검수창에서 과목 수동 지정
-        // 여기선 settings.subjects[0] 에 매핑 (나중에 리뷰창에서 쉽게 변경 가능)
-        const targetSubject = settings.subjects[0];
+        logMsg(`✔ 과목 식별: ${targetSubject.name}`);
 
         // 2. 답안 칸 OCR 추출
         const answers = {};

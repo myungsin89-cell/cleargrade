@@ -366,7 +366,7 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
     if (maxDarkness > FillThreshold) {
         return {
             text: String(bestChoiceIndex + 1),
-            confidence: Math.min(100, Math.round(maxDarkness * 100 * 1.5)),
+            confidence: Math.min(100, Math.round(maxDarkness * 100 * 2.5)),
             boxImage: boxImage
         };
     } else {
@@ -386,9 +386,9 @@ export function getQuestionBoxDefs(settings) {
     const defs = {};
 
     const startX = 20; // 15mm padding + 5mm margin
-    const startY = 60; // 15mm padding + 10mm header-mt + 35mm header height
+    const startY = 70; // 15mm padding + 10mm header-mt + 45mm header height
 
-    const colW = 56.66; // (210 - 30 - 10) / 3
+    const colW = 58.333; // (210 - 30 - 5) / 3 (Account for CSS Grid padding)
     const rowH = 20;    // 10mm row height + 10mm row-gap
 
     settings.subjects.forEach(subject => {
@@ -416,7 +416,15 @@ export function getQuestionBoxDefs(settings) {
     return defs;
 }
 
-// 학생 번호 칸 위치 (Centered in header)
+// Header 영역 전체 박스 (과목명, 학번, 이름 등 한 번에 추출용)
+export const headerBoxDef = {
+    x: 0,
+    y: 0,
+    w: 1,
+    h: 70 / 297
+};
+
+// 기존의 분할 칸들은 하위 호환성을 위해 유지하거나 제거해도 무방
 export const studentNumberBoxDef = {
     x: 55 / 210,
     y: 46 / 297,

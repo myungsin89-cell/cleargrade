@@ -84,7 +84,7 @@ export function generateAnswerSheets(settings, students) {
       .header {
         text-align: center;
         margin-top: 10mm;
-        height: 35mm;
+        height: 45mm;
         position: relative;
       }
       .header h1 {

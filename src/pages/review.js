@@ -60,7 +60,7 @@ export async function renderReview(container, settings) {
            background: ${isLowConf ? '#ffebee' : 'white'}
          ">
            <div style="font-weight: bold; margin-bottom: 5px;">${i}번</div>
-           ${imgSrc ? `<img src="${imgSrc}" style="width: 40px; height: 40px; border:1px solid #ccc; background:#fff; margin-bottom: 5px;" />` : ''}
+           ${imgSrc ? `<img src="${imgSrc}" style="width: 120px; height: 35px; object-fit: contain; border:1px solid #ccc; background:#fff; margin-bottom: 5px;" />` : ''}
            <br>
            <input type="number" 
              id="rev-q-${i}" 
@@ -114,7 +114,7 @@ export async function renderReview(container, settings) {
         }
         .q-grid-rev {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 16px;
             max-height: 60vh;
             overflow-y: auto;
