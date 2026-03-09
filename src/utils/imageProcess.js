@@ -28,9 +28,9 @@ export function loadImageFromFile(file) {
  * 
  * @param {HTMLImageElement} img - 원본 스캔 이미지
  * @param {Object} boxDef - { x, y, w, h } 상대적 좌표 (0~1 비율)
- * @returns {String} DataURL (28x28 이미지)
+ * @returns {String | Array<String>} DataURL (28x28 이미지) 또는 다중 숫자 분할 시 URL 배열
  */
-export function extractBox(img, boxDef, removeBorder = false) {
+export function extractBox(img, boxDef, removeBorder = false, returnMultiple = false) {
     // 1. 원본 이미지에서 박스 영역 잘라내기
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
@@ -72,8 +72,14 @@ export function extractBox(img, boxDef, removeBorder = false) {
     for (let i = 0; i < data.length; i += 4) {
         const avg = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
         grays[i/4] = avg;
-        if (avg < minGray) minGray = avg;
-        if (avg > maxGray) maxGray = avg;
+
+        const x = (i/4) % sw;
+        const y = Math.floor((i/4) / sw);
+        // 중앙 60% 영역만 밝기 기준으로 삼아 박스 외곽 테두리 픽셀 간섭을 배제
+        if (x > sw * 0.2 && x < sw * 0.8 && y > sh * 0.2 && y < sh * 0.8) {
+            if (avg < minGray) minGray = avg;
+            if (avg > maxGray) maxGray = avg;
+        }
     }
 
     // 대비가 너무 낮으면(백지) 보정 생략
@@ -81,6 +87,8 @@ export function extractBox(img, boxDef, removeBorder = false) {
         for (let i = 0; i < grays.length; i++) {
             // 정규화 (0~255)
             let val = ((grays[i] - minGray) / (maxGray - minGray)) * 255;
+            if (val < 0) val = 0;
+            if (val > 255) val = 255;
             grays[i] = val;
         }
     }
@@ -144,55 +152,139 @@ export function extractBox(img, boxDef, removeBorder = false) {
     }
     tempCtx.putImageData(imageData, 0, 0);
 
-    // 5. 바운딩 박스(Bounding Box) 추출 - 글씨가 있는 영역만 타이트하게 잘라냄
-    let minX = sw, minY = sh, maxX = 0, maxY = 0;
-    for (let y = 0; y < sh; y++) {
+    // 5. 바운딩 박스 추출 및 분할 (returnMultiple에 따라 다름)
+    if (returnMultiple) {
+        // --- 세로 투영(Vertical Projection)을 통한 숫자 다중 분할 (수험번호 등) ---
+        const isText = new Uint8Array(sw * sh);
+        for (let i = 0; i < sw * sh; i++) {
+            isText[i] = grays[i] < threshold ? 1 : 0;
+        }
+
+        const colSums = new Int32Array(sw);
         for (let x = 0; x < sw; x++) {
-            const idx = (y * sw + x) * 4;
-            if (data[idx] > 0) { // 글씨 픽셀
-                if (x < minX) minX = x;
-                if (x > maxX) maxX = x;
-                if (y < minY) minY = y;
-                if (y > maxY) maxY = y;
+            let sum = 0;
+            for (let y = 0; y < sh; y++) {
+                sum += isText[y * sw + x];
+            }
+            colSums[x] = sum;
+        }
+
+        const segments = [];
+        let inDigit = false;
+        let startX = 0;
+        for (let x = 0; x < sw; x++) {
+            if (!inDigit && colSums[x] > 0) {
+                inDigit = true;
+                startX = x;
+            } else if (inDigit && colSums[x] <= 0) { // 완전한 공백에서 자르기
+                inDigit = false;
+                segments.push({startX: startX, endX: x - 1});
             }
         }
-    }
+        if (inDigit) {
+            segments.push({startX: startX, endX: sw - 1});
+        }
 
-    // 6. 28x28 최종 캔버스에 그리기 (패딩 포함)
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = 28;
-    finalCanvas.height = 28;
-    const finalCtx = finalCanvas.getContext('2d');
-    
-    // 검은색 배경 채우기
-    finalCtx.fillStyle = 'black';
-    finalCtx.fillRect(0, 0, 28, 28);
+        const dataUrls = [];
+        for (let seg of segments) {
+            if (seg.endX - seg.startX < 2) continue; // 너무 얇은 노이즈 무시
 
-    // 글씨가 없으면 빈 이미지 반환
-    if (minX > maxX || minY > maxY) {
+            let minX = seg.startX;
+            let maxX = seg.endX;
+            let minY = sh, maxY = 0;
+
+            for (let y = 0; y < sh; y++) {
+                for (let x = minX; x <= maxX; x++) {
+                    if (isText[y * sw + x]) {
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            if (minY > maxY) continue; // 빈 칸
+
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = 28;
+            finalCanvas.height = 28;
+            const finalCtx = finalCanvas.getContext('2d');
+            finalCtx.fillStyle = 'black';
+            finalCtx.fillRect(0, 0, 28, 28);
+
+            const textW = maxX - minX + 1;
+            const textH = maxY - minY + 1;
+            const scale = 20 / Math.max(textW, textH);
+            const targetW = textW * scale;
+            const targetH = textH * scale;
+            const dx = (28 - targetW) / 2;
+            const dy = (28 - targetH) / 2;
+
+            const charCanvas = document.createElement('canvas');
+            charCanvas.width = textW;
+            charCanvas.height = textH;
+            const charCtx = charCanvas.getContext('2d');
+            const charImgData = charCtx.createImageData(textW, textH);
+            for (let y = 0; y < textH; y++) {
+                for (let x = 0; x < textW; x++) {
+                    const idx = (y * textW + x) * 4;
+                    const color = isText[(minY + y) * sw + (minX + x)] ? 255 : 0;
+                    charImgData.data[idx] = color;
+                    charImgData.data[idx+1] = color;
+                    charImgData.data[idx+2] = color;
+                    charImgData.data[idx+3] = 255;
+                }
+            }
+            charCtx.putImageData(charImgData, 0, 0);
+            finalCtx.drawImage(charCanvas, dx, dy, targetW, targetH);
+            dataUrls.push(finalCanvas.toDataURL('image/png'));
+        }
+        return dataUrls;
+
+    } else {
+        // --- 단일 칸 (문제 정답 등) ---
+        let minX = sw, minY = sh, maxX = 0, maxY = 0;
+        for (let y = 0; y < sh; y++) {
+            for (let x = 0; x < sw; x++) {
+                const idx = (y * sw + x) * 4;
+                if (data[idx] > 0) { // 글씨 픽셀
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = 28;
+        finalCanvas.height = 28;
+        const finalCtx = finalCanvas.getContext('2d');
+        
+        finalCtx.fillStyle = 'black';
+        finalCtx.fillRect(0, 0, 28, 28);
+
+        if (minX > maxX || minY > maxY) {
+            return finalCanvas.toDataURL('image/png');
+        }
+
+        const textW = maxX - minX + 1;
+        const textH = maxY - minY + 1;
+
+        const scale = 20 / Math.max(textW, textH);
+        const targetW = textW * scale;
+        const targetH = textH * scale;
+
+        const dx = (28 - targetW) / 2;
+        const dy = (28 - targetH) / 2;
+
+        finalCtx.drawImage(
+            tempCanvas, 
+            minX, minY, textW, textH, 
+            dx, dy, targetW, targetH
+        );
+
         return finalCanvas.toDataURL('image/png');
     }
-
-    const textW = maxX - minX + 1;
-    const textH = maxY - minY + 1;
-
-    // 긴 변을 20픽셀(전체 28에서 4픽셀씩 여백)로 맞춤
-    const scale = 20 / Math.max(textW, textH);
-    const targetW = textW * scale;
-    const targetH = textH * scale;
-
-    // 정가운데 위치 계산
-    const dx = (28 - targetW) / 2;
-    const dy = (28 - targetH) / 2;
-
-    // 타이트하게 잘라낸 부분을 28x28 캔버스 가운데에 스케일링하여 그리기
-    finalCtx.drawImage(
-        tempCanvas, 
-        minX, minY, textW, textH, 
-        dx, dy, targetW, targetH
-    );
-
-    return finalCanvas.toDataURL('image/png');
 }
 
 export function getQuestionBoxDefs(settings) {

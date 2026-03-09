@@ -156,9 +156,19 @@ export async function renderScan(container, settings) {
       try {
         const img = await loadImageFromFile(file);
 
-        // 1. 학생 출석번호 식별 (OCR)
-        const numDataUrl = extractBox(img, studentNumberBoxDef);
-        const { text: stNumText, confidence: stNumConf } = await recognizeDigit(numDataUrl);
+        // 1. 학생 출석번호 식별 (OCR) - 다중 숫자 분할 지원
+        const numDataUrls = extractBox(img, studentNumberBoxDef, false, true);
+        let stNumTextStr = '';
+        let minConf = 100;
+        
+        for (let digitDataUrl of numDataUrls) {
+          const res = await recognizeDigit(digitDataUrl);
+          stNumTextStr += res.text;
+          if (res.confidence < minConf) minConf = res.confidence;
+        }
+        
+        const stNumText = stNumTextStr;
+        const stNumConf = numDataUrls.length > 0 ? minConf : 0;
 
         let identifiedStudent = null;
         let pNum = parseInt(stNumText, 10);
