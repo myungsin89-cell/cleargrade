@@ -1,4 +1,4 @@
-import { getAllScanResults, saveScanResult, getStudents, getSettings } from '../store.js';
+import { getAllScanResults, saveScanResult, getStudents, getSettings, clearScanResults } from '../store.js';
 
 export async function renderReview(container, settings) {
   const results = await getAllScanResults();
@@ -137,7 +137,8 @@ export async function renderReview(container, settings) {
             <span class="badge neutral" style="margin-left: 12px; font-size: 0.9rem;">${currentIndex + 1} / ${displayList.length}</span>
           </h1>
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn danger outline" style="margin-right: 20px; font-size: 0.85rem; padding: 6px 12px;" onclick="clearAllScans()">전체 스캔본 삭제</button>
           <button class="btn secondary outline" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전</button>
           <button class="btn secondary outline" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 ▶</button>
         </div>
@@ -208,8 +209,6 @@ export async function renderReview(container, settings) {
 
   window.deleteCurrent = async () => {
     if (confirm('이 스캔 결과를 영구적으로 삭제하시겠습니까?')) {
-      const { parse } = await import('../store.js'); // Assuming remove exists in store or just use indirect method
-      // Actually we have direct IDB access
       const id = currentResult.id;
 
       const DB_NAME = 'autoGraderDB';
@@ -220,11 +219,27 @@ export async function renderReview(container, settings) {
         tx.objectStore('scanResults').delete(id);
         tx.oncomplete = () => {
           displayList.splice(currentIndex, 1);
+          if (displayList.length === 0) {
+              renderReview(container, settings); // Reload empty
+              return;
+          }
           if (currentIndex >= displayList.length) currentIndex = Math.max(0, displayList.length - 1);
           currentResult = displayList[currentIndex];
           renderCurrent();
         };
       };
+    }
+  };
+
+  window.clearAllScans = async () => {
+    if (confirm('경고: 복구할 수 없습니다! 지금까지 올린 모든 스캔본 데이터를 지우시겠습니까?')) {
+      try {
+        await clearScanResults();
+        renderReview(container, settings);
+      } catch (err) {
+        console.error(err);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
     }
   };
 
