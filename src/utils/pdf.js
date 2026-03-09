@@ -117,7 +117,7 @@ export function generateAnswerSheets(settings, students) {
       .q-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        row-gap: 6.5mm;
+        row-gap: 10mm;
         column-gap: 5mm;
         margin: 0 5mm;
       }
@@ -126,7 +126,7 @@ export function generateAnswerSheets(settings, students) {
         align-items: center;
         justify-content: flex-start;
         font-size: 13pt;
-        height: 7.5mm;
+        height: 10mm;
       }
       .q-num {
         width: 10mm;

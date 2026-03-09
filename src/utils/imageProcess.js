@@ -389,7 +389,7 @@ export function getQuestionBoxDefs(settings) {
     const startY = 60; // 15mm padding + 10mm header-mt + 35mm header height
 
     const colW = 56.66; // (210 - 30 - 10) / 3
-    const rowH = 14;    // 7.5mm row height + 6.5mm row-gap
+    const rowH = 20;    // 10mm row height + 10mm row-gap
 
     settings.subjects.forEach(subject => {
         defs[subject.id] = {};
