@@ -166,26 +166,18 @@ export async function renderScan(container, settings) {
           identifiedStudent = students.find(s => s.number === pNum);
         }
 
-        // 이름 식별 추가
-        const nameDataUrl = extractBox(img, studentNameBoxDef);
-        const { text: stNameText, confidence: stNameConf } = await recognizeWord(nameDataUrl);
-
-        if (!identifiedStudent && stNameText && stNameText.trim().length > 0) {
-          const cleanName = stNameText.replace(/\s/g, '');
-          const matchedByName = students.find(s => s.name.replace(/\s/g, '') === cleanName);
-          if (matchedByName) {
-            identifiedStudent = matchedByName;
-            pNum = identifiedStudent.number;
-            logMsg(`✔ 이름으로 학생 식별 교차성공: ${identifiedStudent.name} (OCR: ${stNameText})`);
-          }
-        }
+        // 이름 식별 추가 (MNIST 모델은 한글 인식을 지원하지 않으므로 건너뜀)
+        // const nameDataUrl = extractBox(img, studentNameBoxDef);
+        // const { text: stNameText, confidence: stNameConf } = await recognizeWord(nameDataUrl);
+        const stNameText = '';
+        const stNameConf = 0;
 
         if (!identifiedStudent) {
-          logMsg(`[경고] 식별 불확실 (입력결과 - 번호: ${stNumText}, 이름: ${stNameText}). 검수화면에서 수동 지정이 필요합니다.`);
+          logMsg(`[경고] 식별 불확실 (입력결과 - 번호: ${stNumText}). 검수화면에서 수동 지정이 필요합니다.`);
           // 일단 미지정(0)으로 저장
           pNum = 0;
         } else {
-          logMsg(`✔ 학생 식별: ${identifiedStudent.number}번 ${identifiedStudent.name} (신뢰도: 번호 ${Math.round(stNumConf)}%, 이름 ${Math.round(stNameConf || 0)}%)`);
+          logMsg(`✔ 학생 식별: ${identifiedStudent.number}번 ${identifiedStudent.name} (신뢰도: 번호 ${Math.round(stNumConf)}%)`);
         }
 
         // MVP에서는 한 장이 한 과목(우선 첫번째 과목)이라고 가정, 사용자가 스캔 후 검수창에서 과목 수동 지정
