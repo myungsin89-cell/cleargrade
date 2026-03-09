@@ -1,5 +1,5 @@
 import { getSettings, getStudents, saveScanResult } from '../store.js';
-import { loadImageFromFile, extractBox, getQuestionBoxDefs, studentNumberBoxDef, studentNameBoxDef } from '../utils/imageProcess.js';
+import { loadImageFromFile, extractBox, analyzeOmrBox, getQuestionBoxDefs, studentNumberBoxDef, studentNameBoxDef } from '../utils/imageProcess.js';
 import { initTesseract, recognizeDigit, recognizeWord, terminateTesseract } from '../utils/ocr.js';
 
 export async function renderScan(container, settings) {
@@ -60,6 +60,7 @@ export async function renderScan(container, settings) {
           <ul style="padding-left: 20px; line-height: 1.8; color: #78350f; font-size: 0.95rem; margin-bottom: 0;">
             <li style="margin-bottom: 8px;"><strong>스마트폰 촬영 주의:</strong> 화면에 그림자가 짙게 지거나 종이가 구겨지면 오답으로 인식될 수 있으니 밝고 반듯하게 찍어주세요.</li>
             <li style="margin-bottom: 8px;"><strong>마커 보존:</strong> 답안지 모서리의 <strong style="color: #92400e;">검은 점(●) 4개</strong>가 사진에서 절대 짤리면 안 됩니다.</li>
+            <li style="margin-bottom: 8px;"><strong>색칠 주의:</strong> 학생이 선택한 동그라미를 충분히 까맣게 칠해야 인식이 잘 됩니다. 연필보다는 컴퓨터용 사인펜 등을 권장합니다.</li>
             <li style="margin-bottom: 8px;"><strong>순서 무관:</strong> 학생들의 답안지가 번호순이 아니어도, 뒤죽박죽 섞여 있어도 AI가 학번을 자동 판독합니다.</li>
             <li style="margin-bottom: 8px;"><strong>과목별 따로 업로드 가능:</strong> 각 과목을 따로따로 올리셔도 되고, 원하신다면 '국영수'를 한꺼번에 섞어서 업로드해도 문제없습니다.</li>
             <li>올리신 직후 <strong>[🔍 검수 및 매칭]</strong> 화면에서 과목과 학생 번호를 최종적으로 확인하고 수정하실 수 있습니다.</li>
@@ -211,19 +212,15 @@ export async function renderScan(container, settings) {
         const qCount = targetSubject.questionCount;
         for (let q = 1; q <= qCount; q++) {
           const boxDef = subjectBoxDefs[q];
-          // 답안 칸의 경우 테두리가 인식 방해를 하므로 removeBorder=true 사용
-          const qDataUrl = extractBox(img, boxDef, true);
-          const ocrRes = await recognizeDigit(qDataUrl);
+          // OMR 방식으로 답안 추출
+          const omrRes = await analyzeOmrBox(img, boxDef, settings.choiceCount);
 
           answers[q] = {
-            digit: parseInt(ocrRes.text, 10),
-            rawText: ocrRes.text,
-            confidence: ocrRes.confidence,
-            boxImage: qDataUrl // 잘라낸 이진화 이미지 (리뷰용)
+            digit: parseInt(omrRes.text, 10),
+            rawText: omrRes.text,
+            confidence: omrRes.confidence,
+            boxImage: omrRes.boxImage // OMR 영역이 표시된 크롭 이미지
           };
-          
-          // 약간의 딜레이 추가 (API Rate Limit 방지)
-          await new Promise(r => setTimeout(r, 50));
         }
 
         // 3. 결과 저장

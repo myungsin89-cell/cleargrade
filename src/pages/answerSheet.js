@@ -56,7 +56,7 @@ export async function renderAnswerSheet(container, settings) {
             </tr>
             <tr>
               <th>선지 개수</th>
-              <td>${settings.choiceCount}지선다 (1~${settings.choiceCount}까지 기입)</td>
+              <td>${settings.choiceCount}지선다 (동그라미 색칠 방식)</td>
             </tr>
             <tr style="background-color: var(--secondary-color);">
               <th>총 예상 장수</th>

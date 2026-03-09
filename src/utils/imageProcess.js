@@ -287,19 +287,109 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
     }
 }
 
+/**
+ * OMR 영역을 분석하여 가장 까맣게 칠해진 동그라미 번호를 반환합니다.
+ * @param {HTMLImageElement} img - 원본 스캔 이미지
+ * @param {Object} boxDef - { x, y, w, h } 상대적 좌표 (0~1 비율)
+ * @param {number} choiceCount - 선택지 개수 (예: 5)
+ * @returns {Object} - { text: string (선택번호), confidence: number, boxImage: string }
+ */
+export async function analyzeOmrBox(img, boxDef, choiceCount) {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+
+    const imgW = img.width;
+    const imgH = img.height;
+
+    let sx = boxDef.x * imgW;
+    let sy = boxDef.y * imgH;
+    let sw = boxDef.w * imgW;
+    let sh = boxDef.h * imgH;
+
+    sw = Math.floor(sw);
+    sh = Math.floor(sh);
+
+    tempCanvas.width = sw;
+    tempCanvas.height = sh;
+    tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    const imageData = tempCtx.getImageData(0, 0, sw, sh);
+    const data = imageData.data;
+
+    const segmentWidth = sw / choiceCount;
+    const darknessLevels = new Array(choiceCount).fill(0);
+    const threshold = 180; 
+
+    // OMR 동그라미 내의 픽셀만 계산 (위아래 여백 배제)
+    const yStart = Math.floor(sh * 0.2);
+    const yEnd = Math.floor(sh * 0.8);
+
+    for (let c = 0; c < choiceCount; c++) {
+        // 좌우 여백 배제
+        const segStart = Math.floor(c * segmentWidth + segmentWidth * 0.25); 
+        const segEnd = Math.floor((c + 1) * segmentWidth - segmentWidth * 0.25);
+        
+        let darkPixelCount = 0;
+        let totalSegmentPixels = Math.max(1, (segEnd - segStart) * (yEnd - yStart));
+
+        for (let y = yStart; y < yEnd; y++) {
+            for (let x = segStart; x < segEnd; x++) {
+                const idx = (y * sw + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                const avg = (r + g + b) / 3;
+                
+                if (avg < threshold) {
+                    darkPixelCount++;
+                }
+            }
+        }
+        
+        darknessLevels[c] = darkPixelCount / totalSegmentPixels;
+    }
+
+    let maxDarkness = 0;
+    let bestChoiceIndex = -1;
+
+    for (let c = 0; c < choiceCount; c++) {
+        if (darknessLevels[c] > maxDarkness) {
+            maxDarkness = darknessLevels[c];
+            bestChoiceIndex = c;
+        }
+    }
+
+    // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
+    const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
+    const FillThreshold = 0.20; // 20% 이상 채워졌으면 마킹으로 간주
+    
+    if (maxDarkness > FillThreshold) {
+        return {
+            text: String(bestChoiceIndex + 1),
+            confidence: Math.min(100, Math.round(maxDarkness * 100 * 1.5)),
+            boxImage: boxImage
+        };
+    } else {
+        return {
+            text: '', // 미기입
+            confidence: 0,
+            boxImage: boxImage
+        };
+    }
+}
+
 export function getQuestionBoxDefs(settings) {
     const A4_W = 210;
     const A4_H = 297;
-    const cols = 5;
+    const cols = 3; // 3 columns for wider OMR boxes
 
     const defs = {};
 
-    // Exact grid physical start
-    const startX = 25; // 15mm padding + 10mm margin
+    const startX = 20; // 15mm padding + 5mm margin
     const startY = 75; // 15mm padding + 10mm header-mt + 50mm header height
 
-    const colW = 32; // (210 - 30 - 20) / 5
-    const rowH = 23; // 15mm q-box + 8mm row gap
+    const colW = 56.66; // (210 - 30 - 10) / 3
+    const rowH = 23; 
 
     settings.subjects.forEach(subject => {
         defs[subject.id] = {};
@@ -307,13 +397,18 @@ export function getQuestionBoxDefs(settings) {
             const row = Math.floor((i - 1) / cols);
             const col = (i - 1) % cols;
 
-            // 물리적인 박스는 15x15mm 이지만, 프린터 배율 축소(Fit to page)나 스캔 오차를 감안해 
-            // 23x23mm의 넉넉한 영역을 스캔하고 BFS 로직으로 테두리만 동적으로 지웁니다.
+            // OMR areas are wider. 
+            // `q-num` text is width 10mm + 2mm margin (approx 12-14 mm offset).
+            const boxStartX = startX + (col * colW) + 14; 
+            const boxStartY = startY + (row * rowH) + 4; // Center vertically on the line
+            const boxW = 8.5 * settings.choiceCount; // Box width scales with choiceCount, approx 8.5mm per choice
+            const boxH = 9; // Height to capture 6.5mm circles
+
             defs[subject.id][i] = {
-                x: (startX + (col * colW) + 12) / A4_W,
-                y: (startY + (row * rowH) - 4) / A4_H,
-                w: 23 / A4_W,
-                h: 23 / A4_H
+                x: boxStartX / A4_W,
+                y: boxStartY / A4_H,
+                w: boxW / A4_W,
+                h: boxH / A4_H
             };
         }
     });

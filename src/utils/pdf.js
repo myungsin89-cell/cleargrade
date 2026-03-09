@@ -122,15 +122,15 @@ export function generateAnswerSheets(settings, students) {
       /* Question Grid */
       .q-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         row-gap: 8mm;
-        column-gap: 0;
-        margin: 0 10mm;
+        column-gap: 5mm;
+        margin: 0 5mm;
       }
       .q-item {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         font-size: 14pt;
         height: 15mm;
       }
@@ -140,13 +140,21 @@ export function generateAnswerSheets(settings, students) {
         margin-right: 5mm;
         font-weight: bold;
       }
-      .q-box {
-        width: 15mm;
-        height: 15mm;
-        border: 2px solid black;
+      .omr-container {
+        display: flex;
+        gap: 2mm;
+        align-items: center;
+      }
+      .omr-circle {
+        width: 6.5mm;
+        height: 6.5mm;
+        border: 1px solid black;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 9pt;
+        color: #444;
       }
       
       .instructions {
@@ -194,12 +202,18 @@ export function generateAnswerSheets(settings, students) {
           <div class="q-grid">
       `;
 
-      // Render question boxes
+      // Render question circles for OMR
       for (let i = 1; i <= subject.questionCount; i++) {
+        let circlesHtml = `<div class="omr-container" data-q="${i}">`;
+        for (let c = 1; c <= settings.choiceCount; c++) {
+          circlesHtml += `<div class="omr-circle">${c}</div>`;
+        }
+        circlesHtml += `</div>`;
+
         html += `
           <div class="q-item">
             <div class="q-num">${i}.</div>
-            <div class="q-box" data-q="${i}"></div>
+            ${circlesHtml}
           </div>
         `;
       }
@@ -208,8 +222,8 @@ export function generateAnswerSheets(settings, students) {
           </div>
           
           <div class="instructions">
-            ※ 네모 칸 안에 <strong>1부터 ${settings.choiceCount}까지의 숫자 하나</strong>를 정자로 또박또박 적어주세요.<br>
-            글씨가 칸 밖으로 나가지 않도록 주의해주세요.
+            ※ 해당하는 번호의 <strong>동그라미를 검게 색칠</strong>해주세요. (예: 1번이 정답이면 1번 동그라미를 색칠)<br>
+            색칠이 연하거나 여러 개를 칠하면 오답 처리될 수 있습니다.
           </div>
         </div>
       `;

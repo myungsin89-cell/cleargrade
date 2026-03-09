@@ -94,7 +94,7 @@ export function renderSettings(container, settings) {
             </select>
           </div>
           <div class="form-group" style="grid-column: 1 / -1;">
-            <label for="googleApiKey">Google Cloud Vision API 키 <span style="font-size: 0.8em; color: var(--text-muted); font-weight: normal;">(미입력 시 기본 엔진 사용 불가)</span></label>
+            <label for="googleApiKey">Google Cloud Vision API 키 <span style="font-size: 0.8em; color: var(--text-muted); font-weight: normal;">(선택. 학번 인식용. 미입력 시 수동 입력 필요. OMR 자동채점은 작동함)</span></label>
             <input type="password" id="googleApiKey" value="${localSettings.googleApiKey || ''}" placeholder="AIzsyA...">
           </div>
         </div>

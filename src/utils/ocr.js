@@ -36,7 +36,8 @@ async function _callGoogleVisionAPI(dataUrl) {
     const apiKey = settings.googleApiKey;
 
     if (!apiKey) {
-        throw new Error('Google Cloud Vision API 키가 설정되지 않았습니다. [설정] 메뉴에서 API 키를 입력해주세요.');
+        console.warn('Google Cloud Vision API 키가 설정되지 않았습니다. OCR 인식을 건너뜁니다.');
+        return { text: '', confidence: 0 };
     }
 
     // DataURL에서 base64 부분만 추출 (예: "data:image/jpeg;base64,.....")
