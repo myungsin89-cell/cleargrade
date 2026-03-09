@@ -84,7 +84,7 @@ export function generateAnswerSheets(settings, students) {
       .header {
         text-align: center;
         margin-top: 10mm;
-        height: 50mm;
+        height: 35mm;
         position: relative;
       }
       .header h1 {
@@ -93,18 +93,12 @@ export function generateAnswerSheets(settings, students) {
         padding-top: 5mm;
         letter-spacing: 2px;
       }
-      .header h2 {
-        font-size: 18pt;
-        font-weight: normal;
-        margin: 5mm 0 0 0;
-      }
       .student-info {
-        position: absolute;
-        bottom: 5mm;
-        right: 15mm;
         display: flex;
-        gap: 15px;
+        justify-content: center;
+        gap: 30px;
         font-size: 14pt;
+        margin-top: 8mm;
       }
       .student-number-box, .student-name-box {
         display: flex;
@@ -190,8 +184,7 @@ export function generateAnswerSheets(settings, students) {
           <div class="marker br"></div>
 
           <div class="header">
-            <h1>${settings.examName}</h1>
-            <h2>- ${subject.name} -</h2>
+            <h1>${subject.name} ${settings.examName}</h1>
             
             <div class="student-info">
               <div class="student-number-box">번호: <span class="student-val">${student.number}</span></div>

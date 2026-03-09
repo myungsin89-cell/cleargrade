@@ -386,7 +386,7 @@ export function getQuestionBoxDefs(settings) {
     const defs = {};
 
     const startX = 20; // 15mm padding + 5mm margin
-    const startY = 75; // 15mm padding + 10mm header-mt + 50mm header height
+    const startY = 60; // 15mm padding + 10mm header-mt + 35mm header height
 
     const colW = 56.66; // (210 - 30 - 10) / 3
     const rowH = 14;    // 7.5mm row height + 6.5mm row-gap
@@ -416,18 +416,18 @@ export function getQuestionBoxDefs(settings) {
     return defs;
 }
 
-// 학생 번호 칸 위치
+// 학생 번호 칸 위치 (Centered in header)
 export const studentNumberBoxDef = {
-    x: 95 / 210,
-    y: 58 / 297,
+    x: 55 / 210,
+    y: 46 / 297,
     w: 40 / 210,
     h: 14 / 297
 };
 
-// 학생 이름 칸 위치
+// 학생 이름 칸 위치 (Centered in header)
 export const studentNameBoxDef = {
-    x: 145 / 210,
-    y: 58 / 297,
+    x: 115 / 210,
+    y: 46 / 297,
     w: 40 / 210,
     h: 14 / 297
 };
