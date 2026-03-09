@@ -207,7 +207,8 @@ export async function renderScan(container, settings) {
         const qCount = targetSubject.questionCount;
         for (let q = 1; q <= qCount; q++) {
           const boxDef = subjectBoxDefs[q];
-          const qDataUrl = extractBox(img, boxDef);
+          // 답안 칸의 경우 테두리가 인식 방해를 하므로 removeBorder=true 사용
+          const qDataUrl = extractBox(img, boxDef, true);
           const ocrRes = await recognizeDigit(qDataUrl);
 
           answers[q] = {

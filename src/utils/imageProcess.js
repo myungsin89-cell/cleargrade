@@ -30,23 +30,30 @@ export function loadImageFromFile(file) {
  * @param {Object} boxDef - { x, y, w, h } 상대적 좌표 (0~1 비율)
  * @returns {String} DataURL
  */
-export function extractBox(img, boxDef) {
+export function extractBox(img, boxDef, removeBorder = false) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // 원본 이미지의 크기
     const imgW = img.width;
     const imgH = img.height;
 
-    // 잘라낼 실제 픽셀 영역
-    // 약간 안쪽으로 잘라서 테두리 선(border)을 제외시킴 (+여백)
-    const marginX = (boxDef.w * imgW) * 0.15;
-    const marginY = (boxDef.h * imgH) * 0.15;
+    let sx = boxDef.x * imgW;
+    let sy = boxDef.y * imgH;
+    let sw = boxDef.w * imgW;
+    let sh = boxDef.h * imgH;
 
-    const sx = (boxDef.x * imgW) + marginX;
-    const sy = (boxDef.y * imgH) + marginY;
-    const sw = (boxDef.w * imgW) - (marginX * 2);
-    const sh = (boxDef.h * imgH) - (marginY * 2);
+    if (!removeBorder) {
+        // 기존: 고정적으로 가장자리 15% 잘라내기 (이름, 번호칸 등에 사용)
+        const marginX = sw * 0.15;
+        const marginY = sh * 0.15;
+        sx += marginX;
+        sy += marginY;
+        sw -= marginX * 2;
+        sh -= marginY * 2;
+    }
+
+    sw = Math.floor(sw);
+    sh = Math.floor(sh);
 
     canvas.width = sw;
     canvas.height = sh;
@@ -60,19 +67,64 @@ export function extractBox(img, boxDef) {
     const threshold = 180; // 임계값
 
     for (let i = 0; i < data.length; i += 4) {
-        // Grayscale: 0.299*R + 0.587*G + 0.114*B
         const avg = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-        // 임계값보다 밝으면 흰색, 어두우면 검은색
         const color = avg > threshold ? 255 : 0;
-
         data[i] = color; // R
         data[i + 1] = color; // G
         data[i + 2] = color; // B
-        // data[i+3] 은 Alpha (그대로 255 유지)
+    }
+
+    if (removeBorder) {
+        // 박스 테두리에 걸친 검은색 섬(Border Line)을 동적으로 찾아 지우기 (BFS)
+        // 화면 가장자리 10% 두께 안쪽에 닿아있는 검은색 픽셀들을 타겟으로 삼음
+        const stack = [];
+        const visited = new Uint8Array(sw * sh);
+        const marginEdgeX = Math.floor(sw * 0.2);
+        const marginEdgeY = Math.floor(sh * 0.2);
+
+        // 상하좌우 가장자리 픽셀들 중 검은색을 스택에 추가
+        for (let y = 0; y < sh; y++) {
+            for (let x = 0; x < sw; x++) {
+                if (x < marginEdgeX || x >= sw - marginEdgeX || y < marginEdgeY || y >= sh - marginEdgeY) {
+                    const idx = (y * sw + x) * 4;
+                    if (data[idx] === 0) {
+                        stack.push([x, y]);
+                        visited[y * sw + x] = 1;
+                    }
+                }
+            }
+        }
+
+        while (stack.length > 0) {
+            const [x, y] = stack.pop();
+            const idx = (y * sw + x) * 4;
+            
+            // 검은색을 흰색으로 지움
+            data[idx] = 255;
+            data[idx + 1] = 255;
+            data[idx + 2] = 255;
+
+            // 상하좌우 탐색
+            const neighbors = [
+                [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1],
+                [x - 1, y - 1], [x + 1, y - 1], [x - 1, y + 1], [x + 1, y + 1]
+            ];
+
+            for (let [nx, ny] of neighbors) {
+                if (nx >= 0 && nx < sw && ny >= 0 && ny < sh) {
+                    const nIdx = ny * sw + nx;
+                    if (!visited[nIdx]) {
+                        visited[nIdx] = 1;
+                        if (data[nIdx * 4] === 0) {
+                            stack.push([nx, ny]);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     ctx.putImageData(imageData, 0, 0);
-
     return canvas.toDataURL('image/png');
 }
 
@@ -96,12 +148,13 @@ export function getQuestionBoxDefs(settings) {
             const row = Math.floor((i - 1) / cols);
             const col = (i - 1) % cols;
 
-            // Box start inside column = 10(num) + 5(margin) + 1(flex-center padding)
+            // 물리적인 박스는 15x15mm 이지만, 프린터 배율 축소(Fit to page)나 스캔 오차를 감안해 
+            // 23x23mm의 넉넉한 영역을 스캔하고 BFS 로직으로 테두리만 동적으로 지웁니다.
             defs[subject.id][i] = {
-                x: (startX + (col * colW) + 16) / A4_W,
-                y: (startY + (row * rowH)) / A4_H,
-                w: 15 / A4_W,
-                h: 15 / A4_H
+                x: (startX + (col * colW) + 12) / A4_W,
+                y: (startY + (row * rowH) - 4) / A4_H,
+                w: 23 / A4_W,
+                h: 23 / A4_H
             };
         }
     });
