@@ -557,30 +557,52 @@ export function detectMarkers(img) {
             }
         }
 
-        // 클러스터가 너무 작으면 노이즈로 간주 (최소 픽셀 수: 20)
-        if (!bestCluster || bestCluster.size < 20) return null;
+        // 클러스터가 너무 작으면 노이즈로 간주 (최소 픽셀 수: 80으로 상향)
+        if (!bestCluster || bestCluster.size < 80) return null;
 
         // 이미지 전체 기준 상대 좌표(0~1)로 변환
         return {
             x: bestCluster.x / w,
             y: bestCluster.y / h,
+            size: bestCluster.size,
         };
     }
 
-    // 각 코너 구역에서 마커 탐지 (이미지의 25% 구역씩)
-    const tl = findMarkerInRegion(0, 0.25, 0, 0.25);
-    const tr = findMarkerInRegion(0.75, 1, 0, 0.25);
-    const bl = findMarkerInRegion(0, 0.25, 0.75, 1);
-    const br = findMarkerInRegion(0.75, 1, 0.75, 1);
+    // 각 코너 구역에서 마커 탐지 (이미지의 20% 구역씩 - 더 좁은 범위로 정확도 향상)
+    const tl = findMarkerInRegion(0, 0.20, 0, 0.20);
+    const tr = findMarkerInRegion(0.80, 1, 0, 0.20);
+    const bl = findMarkerInRegion(0, 0.20, 0.80, 1);
+    const br = findMarkerInRegion(0.80, 1, 0.80, 1);
 
     if (!tl || !tr || !bl || !br) {
         console.warn('[마커 탐지] 일부 마커를 찾지 못했습니다:', { tl, tr, bl, br });
         return null;
     }
 
-    console.log('[마커 탐지 성공]', { tl, tr, bl, br });
+    // ── 탐지된 마커 유효성 검증 ───────────────────────────────────────────
+    // 실제 마커가 이루는 사각형의 가로:세로 비율이 A4 기준과 비슷한지 확인
+    // A4 기준 마커 간격: 너비 173mm / 높이 260mm ≈ 0.665
+    const markerW = ((tr.x - tl.x) + (br.x - bl.x)) / 2; // 좌우 평균 너비
+    const markerH = ((bl.y - tl.y) + (br.y - tr.y)) / 2; // 상하 평균 높이
+
+    if (markerH < 0.001) {
+        console.warn('[마커 탐지] 유효하지 않은 마커 위치 (높이 0)');
+        return null;
+    }
+
+    const aspectRatio = markerW / markerH;
+    const EXPECTED_RATIO = 173 / 260; // ≈ 0.665
+    const RATIO_TOLERANCE = 0.15; // ±15% 허용
+
+    if (Math.abs(aspectRatio - EXPECTED_RATIO) > RATIO_TOLERANCE) {
+        console.warn(`[마커 탐지] 비율 불일치 (탐지 ${aspectRatio.toFixed(3)}, 기대 ${EXPECTED_RATIO.toFixed(3)}). 폴백.`);
+        return null;
+    }
+
+    console.log(`[마커 탐지 성공] 비율: ${aspectRatio.toFixed(3)}`, { tl, tr, bl, br });
     return { tl, tr, bl, br };
 }
+
 
 /**
  * 탐지된 마커 좌표를 기반으로 OMR 박스 정의를 보정합니다.
