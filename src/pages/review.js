@@ -99,7 +99,7 @@ export async function renderReview(container, settings) {
       <style>
         .review-layout {
             display: grid;
-            grid-template-columns: 320px 1fr; /* 320px fixed for image, REST OF WIDE SCREEN for the important form */
+            grid-template-columns: 420px 1fr; /* 420px fixed for image to make it larger, REST OF WIDE SCREEN for the important form */
             gap: 20px;
             height: calc(100vh - 120px); /* Fill screen to prevent overall scroll */
         }
@@ -204,13 +204,13 @@ export async function renderReview(container, settings) {
       <div class="page-header" style="margin-bottom: 20px;">
         <div style="display: flex; align-items: center; gap: 16px;">
           <h1 class="page-title" style="margin:0;">
-            🔍 검수하기 
+            검수하기 
           </h1>
           <span class="badge neutral" style="font-size: 1rem; padding: 6px 14px;">${currentIndex + 1} / ${displayList.length}</span>
-          <button class="btn primary outline" style="margin-left: 10px; font-size: 0.9rem; padding: 6px 14px;" onclick="document.getElementById('matching-modal').style.display='flex'">📊 전체 매칭 명렬표 확인</button>
+          <button class="btn primary" style="margin-left: 10px; font-size: 0.9rem; padding: 6px 14px;" onclick="document.getElementById('matching-modal').style.display='flex'">전체 학생 매칭 현황</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn danger outline" style="margin-right: 20px; font-size: 0.9rem; padding: 6px 14px;" onclick="clearAllScans()">⚠️ 전체 스캔본 일괄 삭제</button>
+          <button class="btn danger" style="margin-right: 20px; font-size: 0.9rem; padding: 6px 14px;" onclick="clearAllScans()">전체 스캔본 일괄 삭제</button>
           <button class="btn secondary outline" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전 스캔</button>
           <button class="btn secondary outline" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 스캔 ▶</button>
         </div>
@@ -247,11 +247,11 @@ export async function renderReview(container, settings) {
                       
                       <!-- 개별 스캔본 삭제 버튼을 메타 정보 우측 끝으로 이동하여 강조 -->
                       <div style="margin-left: auto;">
-                          <button class="btn danger outline" style="padding: 6px 12px; font-size: 0.85rem;" onclick="deleteCurrent()">🗑️ 이 스캔본 지우기</button>
+                          <button class="btn danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="deleteCurrent()">이 스캔본 삭제하기</button>
                       </div>
                   </div>
                   
-                  ${currentResult.studentNumber === 0 ? '<div style="color:var(--danger-color); font-size:0.85em; margin-bottom:12px; font-weight: 500;">⚠️ 출석번호 인식 실패. 명단에서 학생을 이름으로 검색하여 직접 선택해주세요.</div>' : ''}
+                  ${currentResult.studentNumber === 0 ? '<div style="color:var(--danger-color); font-size:0.85em; margin-bottom:12px; font-weight: 500;">출석번호 인식 실패. 명단에서 학생을 <strong>이름으로 검색</strong>하여 변경해주세요.</div>' : ''}
 
                   <!-- 텍스트 압축 -->
                   <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; flex-shrink: 0;">
