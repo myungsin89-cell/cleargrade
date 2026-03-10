@@ -142,6 +142,11 @@ body {
   max-width: 1200px;
 }
 
+.main-content.full-width {
+  max-width: none;
+  padding-right: 24px;
+}
+
 .page-title {
   font-size: 2.25rem;
   font-weight: 700;

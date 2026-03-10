@@ -1,6 +1,11 @@
 import { getAllScanResults, saveScanResult, getStudents, getSettings, clearScanResults } from '../store.js';
 
 export async function renderReview(container, settings) {
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) {
+    mainContent.classList.add('full-width'); // Expand this specific screen
+  }
+
   const results = await getAllScanResults();
   const students = await getStudents();
 
@@ -94,7 +99,7 @@ export async function renderReview(container, settings) {
       <style>
         .review-layout {
             display: grid;
-            grid-template-columns: 350px 1fr 350px; /* 3-column layout */
+            grid-template-columns: minmax(300px, 1fr) 350px 350px; /* Let the scan image take remaining space, keep forms fixed */
             gap: 20px;
             height: calc(100vh - 120px); /* Fill screen to prevent overall scroll */
         }
