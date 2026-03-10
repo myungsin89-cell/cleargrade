@@ -1,114 +1,74 @@
 /**
- * Google Cloud Vision API 기반 OCR
+ * Tesseract.js API 기반 로컬 OCR
  */
 
-import { getSettings } from '../store.js';
+let worker = null;
 
 /**
- * 하위 호환성을 위한 초기화 (실제 사용 안 함)
+ * 스캔 화면 로드 시 OCR 엔진(Worker) 초기화 및 로드 미리 진행
  */
 export async function initTesseract() {
-    console.log('[OCR] Google Vision 모듈 초기화 (준비 완료)');
-    return true;
+    if (worker) return true; // 이미 로딩됨
+
+    try {
+        console.log('[OCR] Tesseract.js 로컬 엔진 초기화 중...');
+        worker = await Tesseract.createWorker('kor+eng', 1, {
+            logger: m => {
+               // console.log(m); // 진행률 확인하고 싶을 때 주석 해제
+            }
+        });
+        // 인식 최적화: 문서(단일 블록) 모드로 설정
+        await worker.setParameters({
+            tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+        });
+        console.log('[OCR] Tesseract.js 엔진 로딩 성공');
+        return true;
+    } catch (e) {
+        console.error('[OCR] Tesseract.js 초기화 실패:', e);
+        worker = null;
+        return false;
+    }
 }
 
 /**
- * DataURL 이미지를 base64로 변환하여 Google Vision API에 텍스트 인식을 요청합니다.
- * @param {string} dataUrl - 이미지 DataURL
- * @returns {Promise<{text: string, confidence: number}>} - 인식된 텍스트와 신뢰도(가짜) 반환
+ * 하위 호환성 위해 남겨둔 함수. 현재 사용하지 않음.
  */
 export async function recognizeDigit(dataUrl) {
-    return _callGoogleVisionAPI(dataUrl);
+    return { text: '', confidence: 0 };
 }
 
 /**
- * 단어 단위 인식 (학번 등에 사용). Google Vision은 둘 다 같은 엔드포인트를 사용하므로 동일 함수 호출.
+ * 단어 단위 인식 (학번, 과목명 등에 사용).
+ * @param {string} dataUrl - 크롭된 헤더 DataURL 이미지
+ * @returns {Promise<{text: string, confidence: number}>}
  */
 export async function recognizeWord(dataUrl) {
-    return _callGoogleVisionAPI(dataUrl);
-}
-
-/**
- * 실제 Google Vision API 호출 내부 함수
- */
-async function _callGoogleVisionAPI(dataUrl) {
-    const settings = await getSettings();
-    const apiKey = settings.googleApiKey;
-
-    if (!apiKey) {
-        console.warn('Google Cloud Vision API 키가 설정되지 않았습니다. OCR 인식을 건너뜁니다.');
+    if (!worker) {
+        console.warn('Tesseract Worker가 초기화되지 않았습니다. OCR 인식을 건너뜁니다.');
         return { text: '', confidence: 0 };
     }
 
-    // DataURL에서 base64 부분만 추출 (예: "data:image/jpeg;base64,.....")
-    const base64Image = dataUrl.split(',')[1];
-
-    if (!base64Image) {
-        throw new Error('올바르지 않은 이미지 형식입니다.');
-    }
-
-    const payload = {
-        requests: [
-            {
-                image: {
-                    content: base64Image
-                },
-                features: [
-                    {
-                        // DOCUMENT_TEXT_DETECTION은 손글씨가 포함된 밀집 텍스트에 유리. 숫자/일반칸은 TEXT_DETECTION도 무방
-                        // 일단 DOCUMENT_TEXT_DETECTION 으로 통일
-                        type: "DOCUMENT_TEXT_DETECTION" 
-                    }
-                ]
-            }
-        ]
-    };
-
-    const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
-
     try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const errData = await response.json();
-            console.error('[Google Vision API 오류]', errData);
-            throw new Error(`Google API 호출 실패: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // 결과 파싱
-        const responses = data.responses || [];
-        if (responses.length > 0 && responses[0].fullTextAnnotation) {
-            let recognizedText = responses[0].fullTextAnnotation.text.trim();
-            // 개행이나 공백 제거 (숫자/학번 위주이므로)
-            recognizedText = recognizedText.replace(/[\s\n\r]/g, '');
-            return {
-                text: recognizedText,
-                confidence: 99 // Vision API V1은 전체 텍스트에 대한 신뢰도를 바로 주지 않음, 대략적 수치 부여
-            };
-        } else {
-            // 인식 못함
-            return {
-                text: '',
-                confidence: 0
-            };
-        }
+        const { data: { text, confidence } } = await worker.recognize(dataUrl);
+        // 공백, 빈줄 제거하여 리턴
+        let recognizedText = text.trim().replace(/[\s\n\r]/g, '');
+        return {
+            text: recognizedText,
+            confidence: confidence // 0 ~ 100
+        };
     } catch (e) {
-        console.error('[OCR 구글 API 호출 실패]', e);
-        throw e;
+        console.error('[OCR] Tesseract 처리 실패', e);
+        return { text: '', confidence: 0 };
     }
 }
 
 /**
- * 메모리 해제용 더미 함수
+ * 메모리 해제용 함수 (스캔 완료 후 호출)
  */
 export async function terminateTesseract() {
-    console.log('[OCR] Google Vision 자원 해제 (동작 없음)');
+    if (worker) {
+        console.log('[OCR] Tesseract.js 자원 해제 완료');
+        await worker.terminate();
+        worker = null;
+    }
 }
