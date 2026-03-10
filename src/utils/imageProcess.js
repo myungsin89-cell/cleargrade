@@ -406,7 +406,7 @@ export function getQuestionBoxDefs(settings) {
             // `q-num` text is width 10mm + 2mm margin (approx 12-14 mm offset).
             const colGap = 5; // CSS .q-grid column-gap: 5mm
             const boxStartX = startX + (col * (colW + colGap)) + 14; 
-            const boxStartY = startY + (row * rowH) + 1; // Center vertically on the line
+            const boxStartY = startY + (row * rowH) + 2.5; // Offset +2.5mm down to vertically center circles within crop box
             const boxW = 8.5 * settings.choiceCount; // Box width scales with choiceCount, approx 8.5mm per choice
             const boxH = 9; // Height to capture 6.5mm circles
 
