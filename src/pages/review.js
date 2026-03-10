@@ -235,19 +235,15 @@ export async function renderReview(container, settings) {
       </style>
 
       <div class="page-header" style="margin-bottom: 10px; padding: 0;">
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
           <h1 class="page-title" style="margin:0; font-size: 1.5rem;">검수하기</h1>
           <span class="badge neutral" style="font-size: 0.9rem; padding: 4px 10px;">${currentIndex + 1} / ${displayList.length}</span>
-          <button class="btn primary" style="font-size: 0.85rem; padding: 4px 10px;" onclick="document.getElementById('matching-modal').style.display='flex'">전체 현황</button>
-        </div>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <button class="btn danger outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="window.confirmUnsaved(() => clearAllScans())">일괄 삭제</button>
-          <button class="btn secondary outline" style="font-size: 0.85rem; padding: 4px 10px;" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전</button>
-          <button class="btn secondary outline" style="font-size: 0.85rem; padding: 4px 10px;" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 ▶</button>
+          <button class="btn primary" style="font-size: 0.85rem; padding: 4px 12px;" onclick="document.getElementById('matching-modal').style.display='flex'">전체 학생 매칭 현황</button>
+          <button class="btn danger outline" style="font-size: 0.8rem; padding: 4px 12px;" onclick="window.confirmUnsaved(() => clearAllScans())">일괄 삭제</button>
         </div>
       </div>
 
-      <!-- 과목 필터 탭 + 저장 버튼 통합 행 -->
+      <!-- 과목 필터 탭 + 저장/이전 버튼 통합 행 -->
       <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #fff; border: 1px solid #eee; padding: 8px; border-radius: 8px;">
           <div style="display: flex; gap: 6px;">
               <button class="btn ${window.activeSubjectFilter === 'ALL' ? 'primary' : 'neutral outline'}" style="padding: 6px 12px; font-size: 0.9rem;" onclick="window.setSubjectFilter('ALL')">전체</button>
@@ -256,9 +252,12 @@ export async function renderReview(container, settings) {
               `).join('')}
           </div>
           
-          <button class="btn primary" style="min-width: 200px; font-size: 1rem; padding: 10px 24px; box-shadow: var(--shadow-md);" onclick="saveCurrentReview()">
-              ${isReviewed ? '✔️ 수정 완료 (저장)' : '✔️ 검수 완료 (동기화)'}
-          </button>
+          <div style="display: flex; gap: 10px; align-items: center;">
+              <button class="btn secondary outline" style="padding: 10px 20px; font-size: 0.95rem;" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전 카드</button>
+              <button class="btn primary" style="min-width: 200px; font-size: 1rem; padding: 10px 24px; box-shadow: var(--shadow-md);" onclick="saveCurrentReview()">
+                  ${isReviewed ? '✔️ 수정 완료 (저장)' : (currentIndex === displayList.length - 1 ? '✔️ 최종 검수 완료' : '✔️ 검수 완료 (다음)')}
+              </button>
+          </div>
       </div>
 
       <div class="review-layout">
