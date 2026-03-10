@@ -321,38 +321,61 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
     const imageData = tempCtx.getImageData(0, 0, sw, sh);
     const data = imageData.data;
 
-    const segmentWidth = sw / choiceCount;
+    // ── 실제 동그라미 위치 계산 (pdf.js 레이아웃 기반) ────────────────────
+    // pdf.js: q-num=10mm, margin-right=5mm → OMR 시작=15mm from 열 왼쪽
+    // boxStartX = col시작 + 14 - 1.5*(N/5) mm
+    // → 박스 기준 OMR 시작 오프셋 = 15 - (14 - 1.5*N/5) = 1 + 0.3*N mm
+    // 동그라미: 지름 6.5mm, 간격 2mm → 피치 8.5mm
+    // boxW = 10*N mm → 픽셀 단위 변환: px/mm = sw / (10*choiceCount)
+
+    const boxW_mm = 10 * choiceCount;
+    const pxPerMm = sw / boxW_mm;
+
+    const omrOffset_mm = 1 + 0.3 * choiceCount; // 박스 왼쪽부터 첫 동그라미 왼쪽까지
+    const circleDiam_mm = 6.5;
+    const circleGap_mm = 2.0;
+    const pitch_mm = circleDiam_mm + circleGap_mm; // 8.5mm
+    const circleR_mm = circleDiam_mm / 2;           // 3.25mm
+
+    // Y: 박스 높이 중 동그라미가 차지하는 영역 (boxH=14mm, 동그라미=6.5mm → 상하 여백 3.75mm)
+    const boxH_mm = 14;
+    const circleYCenter = sh / 2; // 박스 수직 중앙
+    const circleR_px = circleR_mm * pxPerMm;
+
     const darknessLevels = new Array(choiceCount).fill(0);
     const threshold = 180;
 
-    // OMR 동그라미 내의 픽셀만 계산 (위아래 여백 배제)
-    const yStart = Math.floor(sh * 0.2);
-    const yEnd = Math.floor(sh * 0.8);
-
     for (let c = 0; c < choiceCount; c++) {
-        // 좌우 여백 배제
-        const segStart = Math.floor(c * segmentWidth + segmentWidth * 0.25);
-        const segEnd = Math.floor((c + 1) * segmentWidth - segmentWidth * 0.25);
+        // 동그라미 중심 X (픽셀)
+        const centerX_mm = omrOffset_mm + c * pitch_mm + circleR_mm;
+        const centerX = centerX_mm * pxPerMm;
 
+        // 원형 샘플링: 동그라미 내부 픽셀만
         let darkPixelCount = 0;
-        let totalSegmentPixels = Math.max(1, (segEnd - segStart) * (yEnd - yStart));
+        let totalPixels = 0;
 
-        for (let y = yStart; y < yEnd; y++) {
-            for (let x = segStart; x < segEnd; x++) {
+        const xFrom = Math.max(0, Math.floor(centerX - circleR_px));
+        const xTo = Math.min(sw - 1, Math.ceil(centerX + circleR_px));
+        const yFrom = Math.max(0, Math.floor(circleYCenter - circleR_px));
+        const yTo = Math.min(sh - 1, Math.ceil(circleYCenter + circleR_px));
+
+        for (let y = yFrom; y <= yTo; y++) {
+            for (let x = xFrom; x <= xTo; x++) {
+                // 원 내부 판정
+                const dx = x - centerX;
+                const dy = y - circleYCenter;
+                if (dx * dx + dy * dy > circleR_px * circleR_px) continue;
+
+                totalPixels++;
                 const idx = (y * sw + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-                const avg = (r + g + b) / 3;
-
-                if (avg < threshold) {
-                    darkPixelCount++;
-                }
+                const avg = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                if (avg < threshold) darkPixelCount++;
             }
         }
 
-        darknessLevels[c] = darkPixelCount / totalSegmentPixels;
+        darknessLevels[c] = totalPixels > 0 ? darkPixelCount / totalPixels : 0;
     }
+
 
     let maxDarkness = 0;
     let bestChoiceIndex = -1;
