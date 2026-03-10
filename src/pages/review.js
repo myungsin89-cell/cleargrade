@@ -28,8 +28,15 @@ export async function renderReview(container, settings) {
 
   let currentIndex = 0;
   let currentResult = displayList[currentIndex];
+  let isDirty = false;
+
+  window.markDirty = () => {
+    isDirty = true;
+  };
 
   const renderCurrent = () => {
+    isDirty = false; // Reset dirty state on render
+
     if (!currentResult) {
       container.innerHTML = `
         <h1 class="page-title">🔍 검수하기</h1>
@@ -71,7 +78,7 @@ export async function renderReview(container, settings) {
              id="rev-q-${i}" 
              value="${v}" 
              min="1" max="${settings.choiceCount}"
-             oninput="handleReviewInput(event, ${i}, ${targetSubject.questionCount}, ${settings.choiceCount})"
+             oninput="markDirty(); handleReviewInput(event, ${i}, ${targetSubject.questionCount}, ${settings.choiceCount})"
              onkeydown="handleReviewKey(event, ${i}, ${targetSubject.questionCount})"
              style="width: 60px; text-align: center; font-size: 1.2em; font-weight: bold;"
              ${conf < 70 ? 'autofocus' : ''}
@@ -210,7 +217,7 @@ export async function renderReview(container, settings) {
           <button class="btn primary" style="margin-left: 10px; font-size: 0.9rem; padding: 6px 14px;" onclick="document.getElementById('matching-modal').style.display='flex'">전체 학생 매칭 현황</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn danger" style="margin-right: 20px; font-size: 0.9rem; padding: 6px 14px;" onclick="clearAllScans()">전체 스캔본 일괄 삭제</button>
+          <button class="btn danger" style="margin-right: 20px; font-size: 0.9rem; padding: 6px 14px;" onclick="window.confirmUnsaved(() => clearAllScans())">전체 스캔본 일괄 삭제</button>
           <button class="btn secondary outline" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전 스캔</button>
           <button class="btn secondary outline" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 스캔 ▶</button>
         </div>
@@ -234,13 +241,13 @@ export async function renderReview(container, settings) {
                   <div class="dense-meta-strip" style="${currentResult.studentNumber === 0 ? 'border: 2px solid var(--danger-color); background: #fff4f2;' : ''}">
                       <div class="form-group">
                           <label style="font-weight: 700;">학생 매칭:</label>
-                          <select id="rev-student" style="${currentResult.studentNumber === 0 ? 'border-color: var(--danger-color);' : ''}" onchange="renderMatchingStatus()">
+                          <select id="rev-student" style="${currentResult.studentNumber === 0 ? 'border-color: var(--danger-color);' : ''}" onchange="markDirty(); renderMatchingStatus()">
                               ${studentOptions}
                           </select>
                       </div>
                       <div class="form-group" style="margin-left: 12px;">
                           <label style="font-weight: 700;">과목 매칭:</label>
-                          <select id="rev-subject" onchange="renderMatchingStatus()">
+                          <select id="rev-subject" onchange="markDirty(); renderMatchingStatus()">
                               ${subjectOptions}
                           </select>
                       </div>
@@ -259,16 +266,16 @@ export async function renderReview(container, settings) {
                       <span style="font-size:0.8em; color:var(--danger-color); font-weight:600;">(빨간 테두리 집중 확인)</span>
                   </div>
 
-                  <!-- 문제 그리드 (스크롤 가능한 핵심 영역) -->
-                  <div class="q-grid-rev" style="flex: 1;">
-                      ${qHtml}
+                  <!-- 위치 고정형 (Sticky) 액션 바 -->
+                  <div class="actions-bar" style="position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(4px); padding: 10px 0; border-bottom: 1px solid #eee; margin-bottom: 15px; flex-shrink: 0;">
+                      <button class="btn primary" style="width: 100%; font-size: 1.1rem; padding: 14px;" onclick="saveCurrentReview()">
+                          ${isReviewed ? '✔️ 수정 완료 (저장)' : '✔️ 검수 완료 (동기화 후 다음 스캔으로 이동)'}
+                      </button>
                   </div>
 
-                  <!-- 액션 바 -->
-                  <div class="actions-bar" style="margin-top: 16px; padding-top: 16px; flex-shrink: 0;">
-                      <button class="btn primary" style="width: 100%; font-size: 1.1rem; padding: 14px;" onclick="saveCurrentReview()">
-                          ${isReviewed ? '✔️ 수정 완료 (저장)' : '✔️ 검수 완료 (다음 장으로 넘어갑니다)'}
-                      </button>
+                  <!-- 문제 그리드 (스크롤 가능한 핵심 영역) -->
+                  <div class="q-grid-rev" style="flex: 1; padding-top: 5px;">
+                      ${qHtml}
                   </div>
               </div>
           </div>
@@ -353,20 +360,34 @@ export async function renderReview(container, settings) {
     containerEl.innerHTML = html;
   };
 
-  window.prevItem = () => {
-    if (currentIndex > 0) {
-      currentIndex--;
-      currentResult = displayList[currentIndex];
-      renderCurrent();
+  window.confirmUnsaved = (callback) => {
+    if (isDirty) {
+      if (confirm('수정된 내용이 아직 저장되지 않았습니다.\n저장하지 않고 이동하시겠습니까?')) {
+        callback();
+      }
+    } else {
+      callback();
     }
   };
 
+  window.prevItem = () => {
+    window.confirmUnsaved(() => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        currentResult = displayList[currentIndex];
+        renderCurrent();
+      }
+    });
+  };
+
   window.nextItem = () => {
-    if (currentIndex < displayList.length - 1) {
-      currentIndex++;
-      currentResult = displayList[currentIndex];
-      renderCurrent();
-    }
+    window.confirmUnsaved(() => {
+      if (currentIndex < displayList.length - 1) {
+        currentIndex++;
+        currentResult = displayList[currentIndex];
+        renderCurrent();
+      }
+    });
   };
 
   window.deleteCurrent = async () => {

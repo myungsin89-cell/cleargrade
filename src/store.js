@@ -93,9 +93,9 @@ const DEFAULT_SETTINGS = {
   className: '',
   choiceCount: 4,
   subjects: [
-    { id: 'sub1', name: '국어', questionCount: 20 },
-    { id: 'sub2', name: '수학', questionCount: 20 },
-    { id: 'sub3', name: '영어', questionCount: 20 },
+    { id: 'sub1', name: '국어', questionCount: 25 },
+    { id: 'sub2', name: '수학', questionCount: 25 },
+    { id: 'sub3', name: '영어', questionCount: 25 },
   ]
 };
 
