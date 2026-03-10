@@ -24,10 +24,24 @@ export async function renderReview(container, settings) {
   const unreviewed = results.filter(r => !r.reviewed);
   const reviewed = results.filter(r => r.reviewed);
 
-  const displayList = [...unreviewed, ...reviewed];
+  // Initialize filter state if not exists
+  if (!window.activeSubjectFilter) {
+    window.activeSubjectFilter = 'ALL';
+  }
+
+  // Combine, Filter, and Sort the display list
+  const allResults = [...unreviewed, ...reviewed];
+  const displayList = allResults
+    .filter(r => window.activeSubjectFilter === 'ALL' || r.subjectId === window.activeSubjectFilter)
+    .sort((a, b) => {
+      // Sort by student number ascending. Put unassigned (0) at the end.
+      const numA = a.studentNumber === 0 ? 9999 : a.studentNumber;
+      const numB = b.studentNumber === 0 ? 9999 : b.studentNumber;
+      return numA - numB;
+    });
 
   let currentIndex = 0;
-  let currentResult = displayList[currentIndex];
+  let currentResult = displayList.length > 0 ? displayList[currentIndex] : null;
   let isDirty = false;
 
   window.markDirty = () => {
@@ -38,10 +52,23 @@ export async function renderReview(container, settings) {
     isDirty = false; // Reset dirty state on render
 
     if (!currentResult) {
+      const emptyMsg = window.activeSubjectFilter === 'ALL' 
+         ? '모든 검수가 완료되었습니다! 🎉' 
+         : '해당 과목의 스캔본이 없습니다.';
+
       container.innerHTML = `
-        <h1 class="page-title">🔍 검수하기</h1>
+        <h1 class="page-title">검수하기</h1>
+        
+        <!-- 과목 필터 탭 (빈 화면에서도 탭 이동 가능하게) -->
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+            <button class="btn ${window.activeSubjectFilter === 'ALL' ? 'primary' : 'neutral outline'}" onclick="window.setSubjectFilter('ALL')">전체 보기</button>
+            ${settings.subjects.map(sub => `
+                <button class="btn ${window.activeSubjectFilter === sub.id ? 'primary' : 'neutral outline'}" onclick="window.setSubjectFilter('${sub.id}')">${sub.name}</button>
+            `).join('')}
+        </div>
+
         <div class="card" style="text-align: center; padding: 50px;">
-          <h3 style="color: var(--primary-color);">모든 검수가 완료되었습니다! 🎉</h3>
+          <h3 style="color: var(--primary-color);">${emptyMsg}</h3>
           <p style="margin-top: 15px;">채점 결과 화면에서 점수를 확인하고 엑셀로 다운로드하세요.</p>
           <br>
           <button class="btn primary" onclick="document.querySelector('a[href=\\'/results\\']').click()">📊 채점 결과 확인하기</button>
@@ -223,6 +250,14 @@ export async function renderReview(container, settings) {
         </div>
       </div>
 
+      <!-- 과목 필터 탭 -->
+      <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+          <button class="btn ${window.activeSubjectFilter === 'ALL' ? 'primary' : 'neutral outline'}" onclick="window.setSubjectFilter('ALL')">전체 보기</button>
+          ${settings.subjects.map(sub => `
+              <button class="btn ${window.activeSubjectFilter === sub.id ? 'primary' : 'neutral outline'}" onclick="window.setSubjectFilter('${sub.id}')">${sub.name}</button>
+          `).join('')}
+      </div>
+
       <div class="review-layout">
           <!-- 원본 이미지 영역 -->
           <div class="full-img-container card" style="padding: 16px; margin: 0;">
@@ -387,6 +422,13 @@ export async function renderReview(container, settings) {
         currentResult = displayList[currentIndex];
         renderCurrent();
       }
+    });
+  };
+
+  window.setSubjectFilter = (subjectId) => {
+    window.confirmUnsaved(() => {
+      window.activeSubjectFilter = subjectId;
+      renderReview(container, settings); // Re-render the entire view to recalculate displayList
     });
   };
 
