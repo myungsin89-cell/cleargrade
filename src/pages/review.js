@@ -99,7 +99,7 @@ export async function renderReview(container, settings) {
       <style>
         .review-layout {
             display: grid;
-            grid-template-columns: minmax(300px, 1fr) 350px 350px; /* Let the scan image take remaining space, keep forms fixed */
+            grid-template-columns: 320px 1fr; /* 320px fixed for image, REST OF WIDE SCREEN for the important form */
             gap: 20px;
             height: calc(100vh - 120px); /* Fill screen to prevent overall scroll */
         }
@@ -207,6 +207,7 @@ export async function renderReview(container, settings) {
             🔍 검수하기 
           </h1>
           <span class="badge neutral" style="font-size: 1rem; padding: 6px 14px;">${currentIndex + 1} / ${displayList.length}</span>
+          <button class="btn primary outline" style="margin-left: 10px; font-size: 0.9rem; padding: 6px 14px;" onclick="document.getElementById('matching-modal').style.display='flex'">📊 전체 매칭 명렬표 확인</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
           <button class="btn danger outline" style="margin-right: 20px; font-size: 0.9rem; padding: 6px 14px;" onclick="clearAllScans()">⚠️ 전체 스캔본 일괄 삭제</button>
@@ -271,11 +272,16 @@ export async function renderReview(container, settings) {
                   </div>
               </div>
           </div>
+      </div>
 
-          <!-- 3번째 패널: 매칭 현황판 -->
-          <div class="matching-panel card" style="overflow-x: auto; padding: 12px; margin: 0; display: flex; flex-direction: column;">
-            <h3 style="margin-bottom:12px; font-size: 1.1rem; flex-shrink: 0; text-align: center;">명렬표 매칭 현황</h3>
-            <div id="matching-status-container" style="flex: 1; overflow-y: auto;"></div>
+      <!-- 명렬표 매칭 현황 모달 (숨김) -->
+      <div id="matching-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+          <div class="card" style="width: 90%; max-width: 1000px; max-height: 85vh; display: flex; flex-direction: column; padding: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
+                  <h2 style="margin: 0;">📊 학생 매칭 명렬표 현황</h2>
+                  <button class="btn neutral outline" style="font-size: 1.2rem; padding: 4px 12px;" onclick="document.getElementById('matching-modal').style.display='none'">닫기 ✖</button>
+              </div>
+              <div id="matching-status-container" style="flex: 1; overflow: auto; padding-right: 8px;"></div>
           </div>
       </div>
     `;
