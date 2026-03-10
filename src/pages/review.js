@@ -335,7 +335,7 @@ export async function renderReview(container, settings) {
 
     // Read all inputs
     for (let i = 1; i <= targetSubject.questionCount; i++) {
-      const el = document.getElementById(`rev - q -${i} `);
+      const el = document.getElementById(`rev-q-${i}`);
       if (el && currentResult.ocrData[i]) {
         const val = parseInt(el.value, 10);
         currentResult.ocrData[i].digit = isNaN(val) ? 0 : val;
