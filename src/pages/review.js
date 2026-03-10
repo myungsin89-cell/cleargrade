@@ -134,9 +134,9 @@ export async function renderReview(container, settings) {
       <style>
         .review-layout {
             display: grid;
-            grid-template-columns: 420px 1fr; /* 420px fixed for image to make it larger, REST OF WIDE SCREEN for the important form */
-            gap: 20px;
-            height: calc(100vh - 120px); /* Fill screen to prevent overall scroll */
+            grid-template-columns: 420px 1fr;
+            gap: 15px; /* Reduced from 20px */
+            height: calc(100vh - 100px); /* Fill screen to prevent overall scroll */
         }
         .full-img-container {
             background: #f8fafc;
@@ -157,16 +157,15 @@ export async function renderReview(container, settings) {
             box-shadow: var(--shadow-sm);
         }
         
-        /* Dense Header Meta Strip */
         .dense-meta-strip {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 16px;
+            gap: 10px;
+            padding: 8px 12px;
             background: #f8fafc;
             border-radius: var(--border-radius-sm);
             border: 1px solid #e2e8f0;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .dense-meta-strip .form-group {
             margin: 0;
@@ -185,13 +184,12 @@ export async function renderReview(container, settings) {
             width: auto;
         }
         
-        /* Dense Question Grid */
         .q-grid-rev {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Widened to 150px to house 110px image + padding */
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Slightly narrowed for density */
+            gap: 8px; /* Reduced from 12px */
             overflow-y: auto;
-            padding-right: 6px;
+            padding-right: 4px;
             align-content: start;
         }
         .q-grid-rev::-webkit-scrollbar {
@@ -236,27 +234,31 @@ export async function renderReview(container, settings) {
         }
       </style>
 
-      <div class="page-header" style="margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <h1 class="page-title" style="margin:0;">
-            검수하기 
-          </h1>
-          <span class="badge neutral" style="font-size: 1rem; padding: 6px 14px;">${currentIndex + 1} / ${displayList.length}</span>
-          <button class="btn primary" style="margin-left: 10px; font-size: 0.9rem; padding: 6px 14px;" onclick="document.getElementById('matching-modal').style.display='flex'">전체 학생 매칭 현황</button>
+      <div class="page-header" style="margin-bottom: 10px; padding: 0;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <h1 class="page-title" style="margin:0; font-size: 1.5rem;">검수하기</h1>
+          <span class="badge neutral" style="font-size: 0.9rem; padding: 4px 10px;">${currentIndex + 1} / ${displayList.length}</span>
+          <button class="btn primary" style="font-size: 0.85rem; padding: 4px 10px;" onclick="document.getElementById('matching-modal').style.display='flex'">전체 현황</button>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn danger" style="margin-right: 20px; font-size: 0.9rem; padding: 6px 14px;" onclick="window.confirmUnsaved(() => clearAllScans())">전체 스캔본 일괄 삭제</button>
-          <button class="btn secondary outline" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전 스캔</button>
-          <button class="btn secondary outline" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 스캔 ▶</button>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button class="btn danger outline" style="font-size: 0.8rem; padding: 4px 10px;" onclick="window.confirmUnsaved(() => clearAllScans())">일괄 삭제</button>
+          <button class="btn secondary outline" style="font-size: 0.85rem; padding: 4px 10px;" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전</button>
+          <button class="btn secondary outline" style="font-size: 0.85rem; padding: 4px 10px;" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 ▶</button>
         </div>
       </div>
 
-      <!-- 과목 필터 탭 -->
-      <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-          <button class="btn ${window.activeSubjectFilter === 'ALL' ? 'primary' : 'neutral outline'}" onclick="window.setSubjectFilter('ALL')">전체 보기</button>
-          ${settings.subjects.map(sub => `
-              <button class="btn ${window.activeSubjectFilter === sub.id ? 'primary' : 'neutral outline'}" onclick="window.setSubjectFilter('${sub.id}')">${sub.name}</button>
-          `).join('')}
+      <!-- 과목 필터 탭 + 저장 버튼 통합 행 -->
+      <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #fff; border: 1px solid #eee; padding: 8px; border-radius: 8px;">
+          <div style="display: flex; gap: 6px;">
+              <button class="btn ${window.activeSubjectFilter === 'ALL' ? 'primary' : 'neutral outline'}" style="padding: 6px 12px; font-size: 0.9rem;" onclick="window.setSubjectFilter('ALL')">전체</button>
+              ${settings.subjects.map(sub => `
+                  <button class="btn ${window.activeSubjectFilter === sub.id ? 'primary' : 'neutral outline'}" style="padding: 6px 12px; font-size: 0.9rem;" onclick="window.setSubjectFilter('${sub.id}')">${sub.name}</button>
+              `).join('')}
+          </div>
+          
+          <button class="btn primary" style="min-width: 200px; font-size: 1rem; padding: 10px 24px; box-shadow: var(--shadow-md);" onclick="saveCurrentReview()">
+              ${isReviewed ? '✔️ 수정 완료 (저장)' : '✔️ 검수 완료 (동기화)'}
+          </button>
       </div>
 
       <div class="review-layout">
@@ -297,20 +299,13 @@ export async function renderReview(container, settings) {
                   ${currentResult.studentNumber === 0 ? '<div style="color:var(--danger-color); font-size:0.85em; margin-bottom:12px; font-weight: 500;">출석번호 인식 실패. 명단에서 학생을 <strong>이름으로 검색</strong>하여 변경해주세요.</div>' : ''}
 
                   <!-- 텍스트 압축 -->
-                  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; flex-shrink: 0;">
-                      <h3 style="margin: 0; font-size: 1.1rem;">인식 결과 확인 및 수정</h3>
-                      <span style="font-size:0.8em; color:var(--danger-color); font-weight:600;">(빨간 테두리 집중 확인)</span>
-                  </div>
-
-                  <!-- 위치 고정형 (Sticky) 액션 바 -->
-                  <div class="actions-bar" style="position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,0.95); backdrop-filter: blur(4px); padding: 10px 0; border-bottom: 1px solid #eee; margin-bottom: 15px; flex-shrink: 0;">
-                      <button class="btn primary" style="width: 100%; font-size: 1.1rem; padding: 14px;" onclick="saveCurrentReview()">
-                          ${isReviewed ? '✔️ 수정 완료 (저장)' : '✔️ 검수 완료 (동기화 후 다음 스캔으로 이동)'}
-                      </button>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0;">
+                      <h3 style="margin: 0; font-size: 1rem;">인식 결과 확인 및 수정</h3>
+                      <span style="font-size:0.75em; color:var(--danger-color); font-weight:600;">(빨간 테두리 집중 확인)</span>
                   </div>
 
                   <!-- 문제 그리드 (스크롤 가능한 핵심 영역) -->
-                  <div class="q-grid-rev" style="flex: 1; padding-top: 5px;">
+                  <div class="q-grid-rev" style="flex: 1; padding-top: 2px;">
                       ${qHtml}
                   </div>
               </div>
