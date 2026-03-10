@@ -94,14 +94,17 @@ export async function renderReview(container, settings) {
          <div style="
            border: 2px solid ${isLowConf ? 'var(--danger-color)' : '#eee'}; 
            border-radius: 8px; 
-           padding: 12px; /* Increased from 10px for more air */
+           padding: 12px;
            text-align: center; 
            background: ${isLowConf ? '#ffebee' : 'white'};
-           min-height: 100px; /* Ensure consistent height */
+           min-height: 100px;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           justify-content: center;
          ">
            <div style="font-weight: bold; margin-bottom: 5px;">${i}번</div>
            ${imgSrc ? `<img src="${imgSrc}" style="width: 110px; height: 32px; object-fit: contain; border:1px solid #ccc; background:#fff; margin-bottom: 5px;" />` : ''}
-           <br>
            <input type="number" 
              id="rev-q-${i}" 
              value="${v}" 
