@@ -21,9 +21,43 @@ export async function renderAnswerSheet(container, settings) {
   const studentCount = students.length;
   const totalPages = subjectCount * studentCount;
 
-  window.handlePrint = () => {
-    generateAnswerSheets(settings, students);
+  // 정렬 한 번 해두기
+  const sortedStudents = [...students].sort((a, b) => a.number - b.number);
+
+  // 전역 함수들 바인딩
+  window.handlePrintAll = () => {
+    generateAnswerSheets(settings, sortedStudents, null);
   };
+
+  window.handlePrintIndividual = (studentId) => {
+    const student = sortedStudents.find(s => s.id === studentId);
+    if (!student) return;
+    
+    const subjectSelect = document.getElementById('print-subject-select');
+    const targetSubjectId = subjectSelect.value === 'ALL' ? null : subjectSelect.value;
+    
+    generateAnswerSheets(settings, [student], targetSubjectId);
+  };
+
+  // 과목 드롭다운 옵션 HTML 생성
+  let subjectOptions = `<option value="ALL">전체 과목 인쇄</option>`;
+  settings.subjects.forEach(sub => {
+      subjectOptions += `<option value="${sub.id}">${sub.name}만 인쇄</option>`;
+  });
+
+  // 학생별 개별 인쇄 리스트 HTML 생성
+  let studentRows = '';
+  sortedStudents.forEach(student => {
+      studentRows += `
+        <tr>
+          <td style="text-align: center;"><strong>${student.number}</strong></td>
+          <td>${student.name}</td>
+          <td style="text-align: right;">
+            <button class="btn secondary outline" style="padding: 4px 10px; font-size: 0.85rem;" onclick="handlePrintIndividual('${student.id}')">🖨️ 개별 인쇄</button>
+          </td>
+        </tr>
+      `;
+  });
 
   container.innerHTML = `
     <div class="page-header">
@@ -31,10 +65,10 @@ export async function renderAnswerSheet(container, settings) {
         <h1 class="page-title">📄 답안지 생성</h1>
         <p class="subtitle">학생별 맞춤형 답안지를 인쇄합니다.</p>
       </div>
-      <button class="btn primary" onclick="handlePrint()">🖨️ 답안지 일괄 인쇄</button>
+      <button class="btn primary" onclick="handlePrintAll()">🖨️ 전체 학생 일괄 인쇄 (${totalPages}장)</button>
     </div>
 
-    <div class="card timeline-card" style="max-width: 900px;">
+    <div class="card timeline-card" style="max-width: 900px; margin-bottom: 24px;">
       <div class="grid-2">
         <div>
           <h3 style="margin-bottom: 16px;">출력 정보 요약</h3>
@@ -79,6 +113,34 @@ export async function renderAnswerSheet(container, settings) {
             </ul>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 개별 인쇄 세션 -->
+    <div class="card" style="max-width: 900px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">개별 학생 인쇄</h3>
+          <div style="display: flex; align-items: center; gap: 8px;">
+              <label style="font-weight: bold; font-size: 0.9rem;">대상 과목 선택:</label>
+              <select id="print-subject-select" style="padding: 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                  ${subjectOptions}
+              </select>
+          </div>
+      </div>
+      
+      <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--border-radius-sm);">
+          <table class="data-table" style="margin: 0;">
+              <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+                  <tr>
+                      <th style="width: 80px; text-align: center;">번호</th>
+                      <th>이름</th>
+                      <th style="width: 120px; text-align: right;">인쇄 기능</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${studentRows}
+              </tbody>
+          </table>
       </div>
     </div>
   `;
