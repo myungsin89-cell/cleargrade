@@ -94,12 +94,13 @@ export async function renderReview(container, settings) {
          <div style="
            border: 2px solid ${isLowConf ? 'var(--danger-color)' : '#eee'}; 
            border-radius: 8px; 
-           padding: 10px; 
+           padding: 12px; /* Increased from 10px for more air */
            text-align: center; 
-           background: ${isLowConf ? '#ffebee' : 'white'}
+           background: ${isLowConf ? '#ffebee' : 'white'};
+           min-height: 100px; /* Ensure consistent height */
          ">
            <div style="font-weight: bold; margin-bottom: 5px;">${i}번</div>
-           ${imgSrc ? `<img src="${imgSrc}" style="width: 120px; height: 35px; object-fit: contain; border:1px solid #ccc; background:#fff; margin-bottom: 5px;" />` : ''}
+           ${imgSrc ? `<img src="${imgSrc}" style="width: 110px; height: 32px; object-fit: contain; border:1px solid #ccc; background:#fff; margin-bottom: 5px;" />` : ''}
            <br>
            <input type="number" 
              id="rev-q-${i}" 
@@ -187,8 +188,8 @@ export async function renderReview(container, settings) {
         /* Dense Question Grid */
         .q-grid-rev {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); /* Very dense columns */
-            gap: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Widened to 150px to house 110px image + padding */
+            gap: 12px;
             overflow-y: auto;
             padding-right: 6px;
             align-content: start;
