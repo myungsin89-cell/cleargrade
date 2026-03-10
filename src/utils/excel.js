@@ -70,8 +70,8 @@ export function exportToExcel(gradingData) {
         subjects.forEach(sub => {
             const scoreObj = scores[st.number] && scores[st.number][sub.id];
             if (scoreObj) {
-                // 점수를 백분율로 환산 (옵션이지만 보통 개수/총점 형태로 표기)
-                row.push(`${scoreObj.total} / ${sub.questionCount}`);
+                // 점수를 순수 데이터화 (숫자로 산출)
+                row.push(scoreObj.total);
             } else {
                 row.push('미응시');
             }

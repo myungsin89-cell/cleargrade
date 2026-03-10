@@ -99,7 +99,6 @@ export async function renderResults(container, settings) {
           tbodyHtml += `
               <td>
                 <span style="font-size: 1.1em; font-weight: bold; color: ${color};">${sData.total}</span>
-                <span style="font-size: 0.85em; color: #666;"> / ${sub.questionCount}</span>
               </td>
             `;
         }
