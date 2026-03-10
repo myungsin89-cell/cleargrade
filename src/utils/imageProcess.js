@@ -404,7 +404,8 @@ export function getQuestionBoxDefs(settings) {
 
             // OMR areas are wider. 
             // `q-num` text is width 10mm + 2mm margin (approx 12-14 mm offset).
-            const boxStartX = startX + (col * colW) + 14; 
+            const colGap = 5; // CSS .q-grid column-gap: 5mm
+            const boxStartX = startX + (col * (colW + colGap)) + 14; 
             const boxStartY = startY + (row * rowH) + 1; // Center vertically on the line
             const boxW = 8.5 * settings.choiceCount; // Box width scales with choiceCount, approx 8.5mm per choice
             const boxH = 9; // Height to capture 6.5mm circles
