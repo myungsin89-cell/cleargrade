@@ -366,12 +366,29 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
 
     // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
     const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
-    const FillThreshold = 0.20; // 20% 이상 채워졌으면 마킹으로 간주
+    const FillThreshold = 0.08; // OMR: 최소 마킹 기준 (연필로 연하게 칠해도 감지)
 
     if (maxDarkness > FillThreshold) {
+        // ── 상대 대비 기반 신뢰도 계산 ───────────────────────────────
+        // "가장 어두운 칸"이 나머지 칸들보다 얼마나 두드러지는지로 판단
+        // → 연하게 칠해도 다른 칸보다 확실히 어두우면 높은 신뢰도
+        const sorted = [...darknessLevels].sort((a, b) => b - a);
+        const best = sorted[0];
+        const second = sorted[1] || 0.001;
+
+        let confidence;
+        if (second < 0.01) {
+            // 2등이 거의 없으면 완전 명확 → 100%
+            confidence = 100;
+        } else {
+            // 1등/2등 비율: 3배 이상이면 100%, 1.2배 이하면 낮음
+            const ratio = best / second;
+            confidence = Math.min(100, Math.round((ratio - 1) * 60 + 40));
+        }
+
         return {
             text: String(bestChoiceIndex + 1),
-            confidence: Math.min(100, Math.round(maxDarkness * 100 * 2.5)),
+            confidence: Math.max(0, confidence),
             boxImage: boxImage
         };
     } else {

@@ -52,9 +52,9 @@ export async function renderReview(container, settings) {
     isDirty = false; // Reset dirty state on render
 
     if (!currentResult) {
-      const emptyMsg = window.activeSubjectFilter === 'ALL' 
-         ? '모든 검수가 완료되었습니다! 🎉' 
-         : '해당 과목의 스캔본이 없습니다.';
+      const emptyMsg = window.activeSubjectFilter === 'ALL'
+        ? '모든 검수가 완료되었습니다! 🎉'
+        : '해당 과목의 스캔본이 없습니다.';
 
       container.innerHTML = `
         <h1 class="page-title">검수하기</h1>
@@ -86,7 +86,7 @@ export async function renderReview(container, settings) {
       const ans = currentResult.ocrData[i];
       const conf = ans ? ans.confidence : 0;
       const v = ans ? (!isNaN(ans.digit) ? ans.digit : '') : '';
-      const isLowConf = conf < 70; // 70% 미만은 주의 표시
+      const isLowConf = conf < 50; // 50% 미만은 주의 표시 (OMR 방식이므로 기준 완화)
 
       let imgSrc = ans ? ans.boxImage : '';
 
@@ -269,8 +269,8 @@ export async function renderReview(container, settings) {
               <h3 style="margin-bottom:12px; font-size: 1.1rem; flex-shrink: 0;">원본 이미지 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${currentResult.fileName})</span></h3>
               <div style="flex: 1; overflow: auto;">
                   ${currentResult.originalImage
-            ? `<img src="${currentResult.originalImage}" alt="스캔 원본">`
-            : '<div style="padding:50px; color:var(--text-muted); background: #f1f5f9; border-radius: 8px;">등록된 이미지가 없습니다.</div>'}
+        ? `<img src="${currentResult.originalImage}" alt="스캔 원본">`
+        : '<div style="padding:50px; color:var(--text-muted); background: #f1f5f9; border-radius: 8px;">등록된 이미지가 없습니다.</div>'}
               </div>
           </div>
 
@@ -336,7 +336,7 @@ export async function renderReview(container, settings) {
 
     const stSelect = document.getElementById('rev-student');
     const sbSelect = document.getElementById('rev-subject');
-    
+
     // Fallbacks just in case DOM isn't fully ready
     const activeStudent = stSelect ? parseInt(stSelect.value, 10) : currentResult?.studentNumber;
     const activeSubject = sbSelect ? sbSelect.value : currentResult?.subjectId;
@@ -356,7 +356,7 @@ export async function renderReview(container, settings) {
       // Highlight row if it is the currently active student in the dropdown
       const isCurrentRow = student.number === activeStudent;
       const rowStyle = isCurrentRow ? 'background-color: #ebf8ff;' : '';
-      
+
       html += `<tr style="${rowStyle}">
         <td style="padding: 6px; text-align:center; font-weight:bold;">${student.number}</td>
         <td style="padding: 6px; text-align:center;">${student.name}</td>
@@ -364,18 +364,18 @@ export async function renderReview(container, settings) {
 
       settings.subjects.forEach(subject => {
         let count = 0;
-        
+
         allResults.forEach(r => {
           let sNum = r.studentNumber;
           let subId = r.subjectId;
-          
+
           if (currentResult && r.id === currentResult.id) {
-             sNum = activeStudent;
-             subId = activeSubject;
+            sNum = activeStudent;
+            subId = activeSubject;
           }
 
           if (sNum === student.number && subId === subject.id) {
-             count++;
+            count++;
           }
         });
 
@@ -443,8 +443,8 @@ export async function renderReview(container, settings) {
         tx.oncomplete = () => {
           displayList.splice(currentIndex, 1);
           if (displayList.length === 0) {
-              renderReview(container, settings); // Reload empty
-              return;
+            renderReview(container, settings); // Reload empty
+            return;
           }
           if (currentIndex >= displayList.length) currentIndex = Math.max(0, displayList.length - 1);
           currentResult = displayList[currentIndex];
