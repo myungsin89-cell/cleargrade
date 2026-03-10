@@ -30,7 +30,7 @@ export function loadImageFromFile(file) {
  * @param {Object} boxDef - { x, y, w, h } 상대적 좌표 (0~1 비율)
  * @returns {String | Array<String>} DataURL (28x28 이미지) 또는 다중 숫자 분할 시 URL 배열
  */
-export function extractBox(img, boxDef, removeBorder = false, returnMultiple = false) {
+export function extractBox(img, boxDef, removeBorder = false, returnMultiple = false, rawImage = false) {
     // 1. 원본 이미지에서 박스 영역 잘라내기
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
@@ -59,6 +59,11 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
     tempCanvas.width = sw;
     tempCanvas.height = sh;
     tempCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    // 헤더 전체 등 통째로 잘라서 원본 그대로 쓸 경우 이진화 생략
+    if (rawImage) {
+        return tempCanvas.toDataURL('image/png');
+    }
 
     // 2. 픽셀 데이터 가져오기
     const imageData = tempCtx.getImageData(0, 0, sw, sh);
@@ -388,7 +393,7 @@ export function getQuestionBoxDefs(settings) {
     const startX = 20; // 15mm padding + 5mm margin
     const startY = 70; // 15mm padding + 10mm header-mt + 45mm header height
 
-    const colW = 58.333; // (210 - 30 - 5) / 3 (Account for CSS Grid padding)
+    const colW = 53.333; // 160 / 3 (Account for CSS Grid gaps perfectly)
     const rowH = 20;    // 10mm row height + 10mm row-gap
 
     settings.subjects.forEach(subject => {

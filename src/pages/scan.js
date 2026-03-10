@@ -158,7 +158,7 @@ export async function renderScan(container, settings) {
         const img = await loadImageFromFile(file);
 
         // 1. 전체 헤더 영역 OCR 추출 (과목명, 번호 등 식별)
-        const headerDataUrl = extractBox(img, headerBoxDef, false, false);
+        const headerDataUrl = extractBox(img, headerBoxDef, false, false, true);
         const { text: headerText, confidence: headerConf } = await recognizeWord(headerDataUrl);
         
         let pNum = 0;
