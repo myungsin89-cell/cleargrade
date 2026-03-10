@@ -94,7 +94,7 @@ export async function renderReview(container, settings) {
       <style>
         .review-layout {
             display: grid;
-            grid-template-columns: 350px 1fr; /* Fixed left column, expanded right column */
+            grid-template-columns: 350px 1fr 350px; /* 3-column layout */
             gap: 20px;
             height: calc(100vh - 120px); /* Fill screen to prevent overall scroll */
         }
@@ -228,13 +228,13 @@ export async function renderReview(container, settings) {
                   <div class="dense-meta-strip" style="${currentResult.studentNumber === 0 ? 'border: 2px solid var(--danger-color); background: #fff4f2;' : ''}">
                       <div class="form-group">
                           <label style="font-weight: 700;">학생 매칭:</label>
-                          <select id="rev-student" style="${currentResult.studentNumber === 0 ? 'border-color: var(--danger-color);' : ''}">
+                          <select id="rev-student" style="${currentResult.studentNumber === 0 ? 'border-color: var(--danger-color);' : ''}" onchange="renderMatchingStatus()">
                               ${studentOptions}
                           </select>
                       </div>
                       <div class="form-group" style="margin-left: 12px;">
                           <label style="font-weight: 700;">과목 매칭:</label>
-                          <select id="rev-subject">
+                          <select id="rev-subject" onchange="renderMatchingStatus()">
                               ${subjectOptions}
                           </select>
                       </div>
@@ -266,8 +266,80 @@ export async function renderReview(container, settings) {
                   </div>
               </div>
           </div>
+
+          <!-- 3번째 패널: 매칭 현황판 -->
+          <div class="matching-panel card" style="overflow-x: auto; padding: 12px; margin: 0; display: flex; flex-direction: column;">
+            <h3 style="margin-bottom:12px; font-size: 1.1rem; flex-shrink: 0; text-align: center;">명렬표 매칭 현황</h3>
+            <div id="matching-status-container" style="flex: 1; overflow-y: auto;"></div>
+          </div>
       </div>
     `;
+
+    // Render the matching status immediately after mounting the DOM
+    window.renderMatchingStatus();
+  };
+
+  window.renderMatchingStatus = () => {
+    const containerEl = document.getElementById('matching-status-container');
+    if (!containerEl) return;
+
+    const stSelect = document.getElementById('rev-student');
+    const sbSelect = document.getElementById('rev-subject');
+    
+    // Fallbacks just in case DOM isn't fully ready
+    const activeStudent = stSelect ? parseInt(stSelect.value, 10) : currentResult?.studentNumber;
+    const activeSubject = sbSelect ? sbSelect.value : currentResult?.subjectId;
+
+    let html = `<table class="styled-table" style="font-size: 0.85em; table-layout: auto; white-space: nowrap; margin: 0; width: 100%;">
+      <thead>
+        <tr>
+          <th style="padding: 6px; text-align:center;">번호</th>
+          <th style="padding: 6px; text-align:center;">이름</th>
+          ${settings.subjects.map(sub => `<th style="padding: 6px; text-align:center;">${sub.name}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+    `;
+
+    students.forEach(student => {
+      // Highlight row if it is the currently active student in the dropdown
+      const isCurrentRow = student.number === activeStudent;
+      const rowStyle = isCurrentRow ? 'background-color: #ebf8ff;' : '';
+      
+      html += `<tr style="${rowStyle}">
+        <td style="padding: 6px; text-align:center; font-weight:bold;">${student.number}</td>
+        <td style="padding: 6px; text-align:center;">${student.name}</td>
+      `;
+
+      settings.subjects.forEach(subject => {
+        let count = 0;
+        
+        displayList.forEach(r => {
+          let sNum = r.studentNumber;
+          let subId = r.subjectId;
+          
+          if (currentResult && r.id === currentResult.id) {
+             sNum = activeStudent;
+             subId = activeSubject;
+          }
+
+          if (sNum === student.number && subId === subject.id) {
+             count++;
+          }
+        });
+
+        let cellHtml = '';
+        if (count === 1) cellHtml = '<span style="color:var(--primary-color); font-weight:bold;">O</span>';
+        else if (count > 1) cellHtml = `<span style="color:var(--danger-color); font-weight:bold;">${count}</span>`;
+        else cellHtml = '<span style="color:#cbd5e1;">-</span>';
+
+        html += `<td style="padding: 6px; text-align:center; background-color: ${isCurrentRow && subject.id === activeSubject ? '#dbeffe' : 'transparent'};">${cellHtml}</td>`;
+      });
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+    containerEl.innerHTML = html;
   };
 
   window.prevItem = () => {
