@@ -39,6 +39,7 @@ async function renderPage(path) {
     link.classList.toggle('active', link.getAttribute('href') === path);
   });
 
+  const renderFn = routes[path] || renderHome;
   const appEl = document.querySelector('#app');
   const mainContentEl = document.querySelector('.main-content');
   if (mainContentEl) {
