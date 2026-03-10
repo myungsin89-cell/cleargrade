@@ -94,32 +94,65 @@ export async function renderReview(container, settings) {
       <style>
         .review-layout {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+            grid-template-columns: 350px 1fr; /* Fixed left column, expanded right column */
+            gap: 20px;
+            height: calc(100vh - 120px); /* Fill screen to prevent overall scroll */
         }
         .full-img-container {
             background: #f8fafc;
-            padding: 16px;
+            padding: 12px;
             border-radius: var(--border-radius);
             text-align: center;
-            max-height: 80vh;
+            height: 100%;
             overflow: auto;
             border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
         }
         .full-img-container img {
             max-width: 100%;
+            height: auto;
             border: 1px solid #cbd5e1;
             border-radius: 4px;
             box-shadow: var(--shadow-sm);
         }
+        
+        /* Dense Header Meta Strip */
+        .dense-meta-strip {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: #f8fafc;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 12px;
+        }
+        .dense-meta-strip .form-group {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dense-meta-strip label {
+            margin: 0;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+        .dense-meta-strip select {
+            padding: 4px 8px;
+            font-size: 0.9rem;
+            width: auto;
+        }
+        
+        /* Dense Question Grid */
         .q-grid-rev {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 16px;
-            max-height: 60vh;
+            grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); /* Very dense columns */
+            gap: 8px;
             overflow-y: auto;
-            padding-right: 12px;
-            padding-bottom: 24px;
+            padding-right: 6px;
+            align-content: start;
         }
         .q-grid-rev::-webkit-scrollbar {
             width: 8px;
@@ -128,61 +161,107 @@ export async function renderReview(container, settings) {
             background-color: #cbd5e1;
             border-radius: 4px;
         }
+        
+        /* Specific dense styling for q-boxes */
+        .q-grid-rev > div {
+           padding: 6px !important;
+        }
+        .q-grid-rev > div img {
+           width: 85px !important;
+           height: 25px !important;
+           margin-bottom: 4px !important;
+        }
+        .q-grid-rev > div input {
+           width: 50px !important;
+           padding: 4px !important;
+           font-size: 1.1em !important;
+        }
+        .q-grid-rev > div .conf-text {
+            font-size: 0.7em !important;
+            margin-top: 2px !important;
+        }
+        
+        /* Right panel flex layout */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Important for grid containment */
+        }
+        .right-panel > .card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            margin-bottom: 0;
+            padding: 20px;
+        }
       </style>
 
-      <div class="page-header">
-        <div>
+      <div class="page-header" style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
           <h1 class="page-title" style="margin:0;">
             🔍 검수하기 
-            <span class="badge neutral" style="margin-left: 12px; font-size: 0.9rem;">${currentIndex + 1} / ${displayList.length}</span>
           </h1>
+          <span class="badge neutral" style="font-size: 1rem; padding: 6px 14px;">${currentIndex + 1} / ${displayList.length}</span>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn danger outline" style="margin-right: 20px; font-size: 0.85rem; padding: 6px 12px;" onclick="clearAllScans()">전체 스캔본 삭제</button>
-          <button class="btn secondary outline" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전</button>
-          <button class="btn secondary outline" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 ▶</button>
+          <button class="btn danger outline" style="margin-right: 20px; font-size: 0.9rem; padding: 6px 14px;" onclick="clearAllScans()">⚠️ 전체 스캔본 일괄 삭제</button>
+          <button class="btn secondary outline" onclick="prevItem()" ${currentIndex === 0 ? 'disabled' : ''}>◀ 이전 스캔</button>
+          <button class="btn secondary outline" onclick="nextItem()" ${currentIndex === displayList.length - 1 ? 'disabled' : ''}>다음 스캔 ▶</button>
         </div>
       </div>
 
       <div class="review-layout">
           <!-- 원본 이미지 영역 -->
-          <div class="full-img-container card" style="padding: 24px;">
-              <h3 style="margin-bottom:16px;">원본 스캔 이미지 <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">(${currentResult.fileName})</span></h3>
-              ${currentResult.originalImage
-        ? `<img src="${currentResult.originalImage}" alt="스캔 원본">`
-        : '<div style="padding:50px; color:var(--text-muted); background: #f1f5f9; border-radius: 8px;">등록된 이미지가 없습니다.</div>'}
+          <div class="full-img-container card" style="padding: 16px; margin: 0;">
+              <h3 style="margin-bottom:12px; font-size: 1.1rem; flex-shrink: 0;">원본 이미지 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${currentResult.fileName})</span></h3>
+              <div style="flex: 1; overflow: auto;">
+                  ${currentResult.originalImage
+            ? `<img src="${currentResult.originalImage}" alt="스캔 원본">`
+            : '<div style="padding:50px; color:var(--text-muted); background: #f1f5f9; border-radius: 8px;">등록된 이미지가 없습니다.</div>'}
+              </div>
           </div>
 
           <!-- 수정 폼 영역 -->
-          <div>
-              <div class="card" style="margin-bottom: 24px; ${currentResult.studentNumber === 0 ? 'border: 2px solid var(--danger-color); box-shadow: 0 0 0 4px #fee2e2;' : ''}">
-                  <div class="grid-2">
-                      <div class="form-group" style="margin:0;">
-                          <label style="font-weight: 700;">학생 매칭</label>
-                          <select id="rev-student" style="${currentResult.studentNumber === 0 ? 'border-color: var(--danger-color); background:#fff4f2;' : ''}">
+          <div class="right-panel">
+              <div class="card">
+                  <!-- 초고밀도 메타 정보 (학생, 과목, 삭제) -->
+                  <div class="dense-meta-strip" style="${currentResult.studentNumber === 0 ? 'border: 2px solid var(--danger-color); background: #fff4f2;' : ''}">
+                      <div class="form-group">
+                          <label style="font-weight: 700;">학생 매칭:</label>
+                          <select id="rev-student" style="${currentResult.studentNumber === 0 ? 'border-color: var(--danger-color);' : ''}">
                               ${studentOptions}
                           </select>
-                          ${currentResult.studentNumber === 0 ? '<div style="color:var(--danger-color); font-size:0.85em; margin-top:8px; font-weight: 500;">⚠️ 출석번호 인식 실패. 명단에서 학생을 직접 선택해주세요.</div>' : ''}
                       </div>
-                      <div class="form-group" style="margin:0;">
-                          <label style="font-weight: 700;">과목 매칭</label>
+                      <div class="form-group" style="margin-left: 12px;">
+                          <label style="font-weight: 700;">과목 매칭:</label>
                           <select id="rev-subject">
                               ${subjectOptions}
                           </select>
                       </div>
+                      
+                      <!-- 개별 스캔본 삭제 버튼을 메타 정보 우측 끝으로 이동하여 강조 -->
+                      <div style="margin-left: auto;">
+                          <button class="btn danger outline" style="padding: 6px 12px; font-size: 0.85rem;" onclick="deleteCurrent()">🗑️ 이 스캔본 지우기</button>
+                      </div>
                   </div>
-              </div>
+                  
+                  ${currentResult.studentNumber === 0 ? '<div style="color:var(--danger-color); font-size:0.85em; margin-bottom:12px; font-weight: 500;">⚠️ 출석번호 인식 실패. 명단에서 학생을 이름으로 검색하여 직접 선택해주세요.</div>' : ''}
 
-              <div class="card">
-                  <h3 style="margin-bottom: 20px;">인식 결과 확인 및 수정 <span style="font-size:0.85em; color:var(--text-muted); font-weight:normal; margin-left:8px;">(빨간 테두리는 한 번 더 확인하세요)</span></h3>
-                  <div class="q-grid-rev">
+                  <!-- 텍스트 압축 -->
+                  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; flex-shrink: 0;">
+                      <h3 style="margin: 0; font-size: 1.1rem;">인식 결과 확인 및 수정</h3>
+                      <span style="font-size:0.8em; color:var(--danger-color); font-weight:600;">(빨간 테두리 집중 확인)</span>
+                  </div>
+
+                  <!-- 문제 그리드 (스크롤 가능한 핵심 영역) -->
+                  <div class="q-grid-rev" style="flex: 1;">
                       ${qHtml}
                   </div>
 
-                  <div class="actions-bar">
-                      <button class="btn danger outline" onclick="deleteCurrent()">스캔본 삭제</button>
-                      <button class="btn primary" onclick="saveCurrentReview()">
-                          ${isReviewed ? '✔️ 수정 완료' : '✔️ 검수 완료 (다음으로)'}
+                  <!-- 액션 바 -->
+                  <div class="actions-bar" style="margin-top: 16px; padding-top: 16px; flex-shrink: 0;">
+                      <button class="btn primary" style="width: 100%; font-size: 1.1rem; padding: 14px;" onclick="saveCurrentReview()">
+                          ${isReviewed ? '✔️ 수정 완료 (저장)' : '✔️ 검수 완료 (다음 장으로 넘어갑니다)'}
                       </button>
                   </div>
               </div>
