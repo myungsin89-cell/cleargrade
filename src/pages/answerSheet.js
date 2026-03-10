@@ -30,7 +30,7 @@ export async function renderAnswerSheet(container, settings) {
   };
 
   window.handlePrintIndividual = (studentId) => {
-    const student = sortedStudents.find(s => String(s.id) === String(studentId));
+    const student = sortedStudents.find(s => String(s.number) === String(studentId));
     if (!student) return;
     
     const subjectSelect = document.getElementById('print-subject-select');
@@ -53,7 +53,7 @@ export async function renderAnswerSheet(container, settings) {
           <td style="text-align: center;"><strong>${student.number}</strong></td>
           <td>${student.name}</td>
           <td style="text-align: right;">
-            <button class="btn secondary outline" style="padding: 4px 10px; font-size: 0.85rem;" onclick="handlePrintIndividual('${student.id}')">🖨️ 개별 인쇄</button>
+            <button class="btn secondary outline" style="padding: 4px 10px; font-size: 0.85rem;" onclick="handlePrintIndividual('${student.number}')">🖨️ 개별 인쇄</button>
           </td>
         </tr>
       `;

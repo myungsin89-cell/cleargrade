@@ -1,4 +1,4 @@
-export function generateAnswerSheets(settings, students) {
+export function generateAnswerSheets(settings, students, targetSubjectId = null) {
   // Create a hidden print container
   let printContainer = document.getElementById('print-container');
   if (!printContainer) {
@@ -173,6 +173,9 @@ export function generateAnswerSheets(settings, students) {
   const sortedStudents = [...students].sort((a, b) => a.number - b.number);
 
   settings.subjects.forEach(subject => {
+    // If a specific subject is requested, skip everything else
+    if (targetSubjectId && subject.id !== targetSubjectId) return;
+
     sortedStudents.forEach(student => {
       // 1 Page per subject + student
       html += `
