@@ -367,24 +367,33 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
     // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
     const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
 
-    // FillThreshold: 빈 동그라미 인쇄 테두리 수준(8~12%)보다 충분히 높아야 함
-    // 원래 0.20으로 충분히 작동했으므로 복구
-    const FillThreshold = 0.20;
+    // FillThreshold: 확실하게 칠했을 때는 25% 이상 어두움
+    // → 빈칸의 테두리+숫자 인쇄(8~15%)와 명확히 구분
+    const FillThreshold = 0.25;
 
-    // 상대 대비도 확인: 1등이 2등보다 1.5배 이상 어두워야 진짜 마킹으로 인정
+    // 상대 대비: 1등이 2등보다 2배 이상 어두워야 인정 (기존 1.5배에서 강화)
     const sorted = [...darknessLevels].sort((a, b) => b - a);
     const best = sorted[0];
     const second = sorted[1] || 0.001;
     const contrastRatio = best / second;
 
-    if (maxDarkness > FillThreshold && contrastRatio >= 1.5) {
-        // ── 상대 대비 기반 신뢰도 계산 ───────────────────────────────
+    if (maxDarkness > FillThreshold && contrastRatio >= 2.0) {
+        // 신뢰도: 대비 비율 기반 계산
         let confidence;
         if (second < 0.01) {
             confidence = 100;
         } else {
-            // 비율 3배 이상 → 100%, 1.5배 → 40%
-            confidence = Math.min(100, Math.round((contrastRatio - 1) * 60 + 40));
+            // 비율 4배 이상 → 100%, 2배 → 40%
+            confidence = Math.min(100, Math.round((contrastRatio - 1) * 40 + 40));
+        }
+
+        // 신뢰도 60% 미만이면 번호를 쓰지 않고 빈칸으로 → 선생님이 직접 확인
+        if (confidence < 60) {
+            return {
+                text: '',
+                confidence: Math.max(0, confidence),
+                boxImage: boxImage
+            };
         }
 
         return {
@@ -394,7 +403,7 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
         };
     } else {
         return {
-            text: '', // 미기입 (또는 대비 부족으로 판단 불가)
+            text: '', // 미기입 or 불확실
             confidence: 0,
             boxImage: boxImage
         };
