@@ -377,61 +377,55 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
     }
 
 
-    let maxDarkness = 0;
-    let bestChoiceIndex = -1;
+    // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
+    const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
 
+    // ── 베이스라인 차감 방식 ────────────────────────────────────────────────
+    // 문제: 원형 샘플링 시 인쇄된 동그라미 테두리가 모든 칸에 ~15-20% 기여
+    // 해결: (N-1)개의 가장 밝은(=빈) 칸들의 평균을 "테두리 기준값"으로 삼고,
+    //       그보다 얼마나 더 어두운지만 측정
+    const sortedByDark = [...darknessLevels].sort((a, b) => a - b);
+
+    // 기준값: 가장 밝은 (choiceCount-1)개의 평균 → 빈 칸들의 자연 어두움
+    const nBaseline = Math.max(1, choiceCount - 1);
+    const baseline = sortedByDark.slice(0, nBaseline).reduce((s, v) => s + v, 0) / nBaseline;
+
+    // 각 칸의 초과 어두움 (베이스라인 대비)
+    const excessLevels = darknessLevels.map(d => Math.max(0, d - baseline));
+
+    let maxExcess = 0;
+    let bestChoiceIndex = -1;
     for (let c = 0; c < choiceCount; c++) {
-        if (darknessLevels[c] > maxDarkness) {
-            maxDarkness = darknessLevels[c];
+        if (excessLevels[c] > maxExcess) {
+            maxExcess = excessLevels[c];
             bestChoiceIndex = c;
         }
     }
 
-    // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
-    const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
+    // 최소 초과 기준: 베이스라인보다 6% 이상 어두워야 마킹으로 인정
+    // (인쇄 노이즈 편차 ~2-3%보다 훨씬 높은 기준)
+    const ExcessThreshold = 0.06;
 
-    // FillThreshold: 확실하게 칠했을 때는 25% 이상 어두움
-    // → 빈칸의 테두리+숫자 인쇄(8~15%)와 명확히 구분
-    const FillThreshold = 0.25;
+    if (maxExcess >= ExcessThreshold) {
+        // 신뢰도: 초과분이 ExcessThreshold의 몇 배인지 (4배=100%, 1배=40%)
+        const excessRatio = maxExcess / ExcessThreshold;
+        const confidence = Math.min(100, Math.round((excessRatio - 1) * 20 + 40));
 
-    // 상대 대비: 1등이 2등보다 2배 이상 어두워야 인정 (기존 1.5배에서 강화)
-    const sorted = [...darknessLevels].sort((a, b) => b - a);
-    const best = sorted[0];
-    const second = sorted[1] || 0.001;
-    const contrastRatio = best / second;
-
-    if (maxDarkness > FillThreshold && contrastRatio >= 2.0) {
-        // 신뢰도: 대비 비율 기반 계산
-        let confidence;
-        if (second < 0.01) {
-            confidence = 100;
-        } else {
-            // 비율 4배 이상 → 100%, 2배 → 40%
-            confidence = Math.min(100, Math.round((contrastRatio - 1) * 40 + 40));
-        }
-
-        // 신뢰도 60% 미만이면 번호를 쓰지 않고 빈칸으로 → 선생님이 직접 확인
-        if (confidence < 60) {
-            return {
-                text: '',
-                confidence: Math.max(0, confidence),
-                boxImage: boxImage
-            };
+        // 신뢰도 50% 미만이면 빈칸으로 (선생님이 직접 확인)
+        if (confidence < 50) {
+            return { text: '', confidence: Math.max(0, confidence), boxImage };
         }
 
         return {
             text: String(bestChoiceIndex + 1),
             confidence: Math.max(0, confidence),
-            boxImage: boxImage
+            boxImage
         };
     } else {
-        return {
-            text: '', // 미기입 or 불확실
-            confidence: 0,
-            boxImage: boxImage
-        };
+        return { text: '', confidence: 0, boxImage };
     }
 }
+
 
 export function getQuestionBoxDefs(settings) {
     const A4_W = 210;
