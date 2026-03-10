@@ -367,7 +367,7 @@ export async function renderReview(container, settings) {
       settings.subjects.forEach(subject => {
         let count = 0;
         
-        displayList.forEach(r => {
+        allResults.forEach(r => {
           let sNum = r.studentNumber;
           let subId = r.subjectId;
           
