@@ -402,13 +402,15 @@ export function getQuestionBoxDefs(settings) {
             const row = Math.floor((i - 1) / cols);
             const col = (i - 1) % cols;
 
-            // OMR areas are wider. 
+            // OMR areas are wider and taller for better alignment tolerance.
             // `q-num` text is width 10mm + 2mm margin (approx 12-14 mm offset).
             const colGap = 5; // CSS .q-grid column-gap: 5mm
-            const boxStartX = startX + (col * (colW + colGap)) + 14; 
-            const boxStartY = startY + (row * rowH) + 2.5; // Offset +2.5mm down to vertically center circles within crop box
-            const boxW = 8.5 * settings.choiceCount; // Box width scales with choiceCount, approx 8.5mm per choice
-            const boxH = 9; // Height to capture 6.5mm circles
+            const boxW = 10 * settings.choiceCount; // Box width scales with choiceCount, expanded from 8.5mm to 10mm
+            const boxH = 12; // Height expanded from 9mm to 12mm for better padding
+
+            // Adjust offsets to keep circles roughly centered in the now-larger box
+            const boxStartX = startX + (col * (colW + colGap)) + 14 - (1.5 * (settings.choiceCount / 5)); // Shift left slightly based on scale
+            const boxStartY = startY + (row * rowH) + 1.0; // Shift up slightly (from 2.5 to 1.0) to center vertically in 12mm box
 
             defs[subject.id][i] = {
                 x: boxStartX / A4_W,

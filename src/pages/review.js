@@ -206,8 +206,8 @@ export async function renderReview(container, settings) {
            padding: 6px !important;
         }
         .q-grid-rev > div img {
-           width: 85px !important;
-           height: 25px !important;
+           width: 110px !important;
+           height: 32px !important;
            margin-bottom: 4px !important;
         }
         .q-grid-rev > div input {
