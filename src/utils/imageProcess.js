@@ -366,24 +366,25 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
 
     // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
     const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
-    const FillThreshold = 0.08; // OMR: 최소 마킹 기준 (연필로 연하게 칠해도 감지)
 
-    if (maxDarkness > FillThreshold) {
+    // FillThreshold: 빈 동그라미의 테두리+숫자 인쇄 = 약 8~12%
+    // 실제 칠한 마킹 = 15% 이상 → 0.15로 설정
+    const FillThreshold = 0.15;
+
+    // 상대 대비도 확인: 1등이 2등보다 1.5배 이상 어두워야 진짜 마킹으로 인정
+    const sorted = [...darknessLevels].sort((a, b) => b - a);
+    const best = sorted[0];
+    const second = sorted[1] || 0.001;
+    const contrastRatio = best / second;
+
+    if (maxDarkness > FillThreshold && contrastRatio >= 1.5) {
         // ── 상대 대비 기반 신뢰도 계산 ───────────────────────────────
-        // "가장 어두운 칸"이 나머지 칸들보다 얼마나 두드러지는지로 판단
-        // → 연하게 칠해도 다른 칸보다 확실히 어두우면 높은 신뢰도
-        const sorted = [...darknessLevels].sort((a, b) => b - a);
-        const best = sorted[0];
-        const second = sorted[1] || 0.001;
-
         let confidence;
         if (second < 0.01) {
-            // 2등이 거의 없으면 완전 명확 → 100%
             confidence = 100;
         } else {
-            // 1등/2등 비율: 3배 이상이면 100%, 1.2배 이하면 낮음
-            const ratio = best / second;
-            confidence = Math.min(100, Math.round((ratio - 1) * 60 + 40));
+            // 비율 3배 이상 → 100%, 1.5배 → 40%
+            confidence = Math.min(100, Math.round((contrastRatio - 1) * 60 + 40));
         }
 
         return {
@@ -393,7 +394,7 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
         };
     } else {
         return {
-            text: '', // 미기입
+            text: '', // 미기입 (또는 대비 부족으로 판단 불가)
             confidence: 0,
             boxImage: boxImage
         };
