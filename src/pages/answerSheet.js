@@ -117,7 +117,7 @@ export async function renderAnswerSheet(container, settings) {
     </div>
 
     <!-- 개별 인쇄 세션 -->
-    <div class="card" style="max-width: 900px;">
+    <div class="card" style="max-width: 900px; margin: 0 auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3 style="margin: 0;">개별 학생 인쇄</h3>
           <div style="display: flex; align-items: center; gap: 8px;">
