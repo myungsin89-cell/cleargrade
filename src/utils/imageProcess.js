@@ -350,21 +350,21 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
         const centerX_mm = omrOffset_mm + c * pitch_mm + circleR_mm;
         const centerX = centerX_mm * pxPerMm;
 
-        // 원형 샘플링: 동그라미 내부 픽셀만
+        // 원형 샘플링: 동그라미 내부 픽셀만 (반지름 85% → 인쇄 테두리 링 제외)
+        const sampleR = circleR_px * 0.85;
         let darkPixelCount = 0;
         let totalPixels = 0;
-
-        const xFrom = Math.max(0, Math.floor(centerX - circleR_px));
-        const xTo = Math.min(sw - 1, Math.ceil(centerX + circleR_px));
-        const yFrom = Math.max(0, Math.floor(circleYCenter - circleR_px));
-        const yTo = Math.min(sh - 1, Math.ceil(circleYCenter + circleR_px));
+        const xFrom = Math.max(0, Math.floor(centerX - sampleR));
+        const xTo = Math.min(sw - 1, Math.ceil(centerX + sampleR));
+        const yFrom = Math.max(0, Math.floor(circleYCenter - sampleR));
+        const yTo = Math.min(sh - 1, Math.ceil(circleYCenter + sampleR));
 
         for (let y = yFrom; y <= yTo; y++) {
             for (let x = xFrom; x <= xTo; x++) {
-                // 원 내부 판정
+                // 원 내부 판정 (85% 반지름 기준)
                 const dx = x - centerX;
                 const dy = y - circleYCenter;
-                if (dx * dx + dy * dy > circleR_px * circleR_px) continue;
+                if (dx * dx + dy * dy > sampleR * sampleR) continue;
 
                 totalPixels++;
                 const idx = (y * sw + x) * 4;
@@ -402,9 +402,9 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
         }
     }
 
-    // 최소 초과 기준: 베이스라인보다 6% 이상 어두워야 마킹으로 인정
-    // (인쇄 노이즈 편차 ~2-3%보다 훨씬 높은 기준)
-    const ExcessThreshold = 0.06;
+    // 최소 초과 기준: 4% 이상이면 마킹으로 인정
+    // (인쇄 노이즈 편차 ~1-2%보다 충분히 높고, 연한 칠 ~5-10%도 감지)
+    const ExcessThreshold = 0.04;
 
     if (maxExcess >= ExcessThreshold) {
         // 신뢰도: 초과분이 ExcessThreshold의 몇 배인지 (4배=100%, 1배=40%)
