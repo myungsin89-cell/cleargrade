@@ -367,9 +367,9 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
     // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
     const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
 
-    // FillThreshold: 빈 동그라미의 테두리+숫자 인쇄 = 약 8~12%
-    // 실제 칠한 마킹 = 15% 이상 → 0.15로 설정
-    const FillThreshold = 0.15;
+    // FillThreshold: 빈 동그라미 인쇄 테두리 수준(8~12%)보다 충분히 높아야 함
+    // 원래 0.20으로 충분히 작동했으므로 복구
+    const FillThreshold = 0.20;
 
     // 상대 대비도 확인: 1등이 2등보다 1.5배 이상 어두워야 진짜 마킹으로 인정
     const sorted = [...darknessLevels].sort((a, b) => b - a);
