@@ -239,7 +239,7 @@ export async function renderReview(container, settings) {
           <h1 class="page-title" style="margin:0; font-size: 1.5rem;">검수하기</h1>
           <span class="badge neutral" style="font-size: 0.9rem; padding: 4px 10px;">${currentIndex + 1} / ${displayList.length}</span>
           <button class="btn primary" style="font-size: 0.85rem; padding: 4px 12px;" onclick="document.getElementById('matching-modal').style.display='flex'">전체 학생 매칭 현황</button>
-          <button class="btn danger outline" style="font-size: 0.8rem; padding: 4px 12px;" onclick="window.confirmUnsaved(() => clearAllScans())">일괄 삭제</button>
+          <button class="btn danger" style="font-size: 0.85rem; padding: 4px 12px;" onclick="window.confirmUnsaved(() => clearAllScans())">전체 스캔본 삭제</button>
         </div>
       </div>
 

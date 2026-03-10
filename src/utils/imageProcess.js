@@ -410,7 +410,7 @@ export function getQuestionBoxDefs(settings) {
 
             // Adjust offsets to keep circles roughly centered in the now-larger box
             const boxStartX = startX + (col * (colW + colGap)) + 14 - (1.5 * (settings.choiceCount / 5)); // Shift left slightly based on scale
-            const boxStartY = startY + (row * rowH) - 1.0; // Shifted up further (from +1.0 to -1.0) to prevent top-clipping of numbers
+            const boxStartY = startY + (row * rowH) + 4.0; // Shifted down (from -1.0 to +4.0) to center numbers vertically
 
             defs[subject.id][i] = {
                 x: boxStartX / A4_W,
