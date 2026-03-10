@@ -73,13 +73,13 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
     let minGray = 255;
     let maxGray = 0;
     const grays = new Uint8Array(sw * sh);
-    
+
     for (let i = 0; i < data.length; i += 4) {
         const avg = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-        grays[i/4] = avg;
+        grays[i / 4] = avg;
 
-        const x = (i/4) % sw;
-        const y = Math.floor((i/4) / sw);
+        const x = (i / 4) % sw;
+        const y = Math.floor((i / 4) / sw);
         // 중앙 60% 영역만 밝기 기준으로 삼아 박스 외곽 테두리 픽셀 간섭을 배제
         if (x > sw * 0.2 && x < sw * 0.8 && y > sh * 0.2 && y < sh * 0.8) {
             if (avg < minGray) minGray = avg;
@@ -101,7 +101,7 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
     // 4. 이진화 (Threshold) 및 반전 (글자가 흰색 255, 배경이 검정 0)
     // MNIST 모델은 검은 배경에 흰 글씨를 요구합니다.
     const threshold = 160; // 대비 정규화 후의 임계값
-    
+
     // 테두리 제거 로직 (BFS) - 기존 로직을 흑백반전 상태에 맞게 수정
     if (removeBorder) {
         const visited = new Uint8Array(sw * sh);
@@ -114,7 +114,7 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
             for (let x = 0; x < sw; x++) {
                 if (x < marginEdgeX || x >= sw - marginEdgeX || y < marginEdgeY || y >= sh - marginEdgeY) {
                     const idx = y * sw + x;
-                    if (grays[idx] < threshold) { 
+                    if (grays[idx] < threshold) {
                         stack.push([x, y]);
                         visited[idx] = 1;
                     }
@@ -148,7 +148,7 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
 
     // 최종 이진화 및 반전 적용
     for (let i = 0; i < data.length; i += 4) {
-        const isText = grays[i/4] < threshold;
+        const isText = grays[i / 4] < threshold;
         const color = isText ? 255 : 0; // 텍스트면 흰색(255), 배경이면 검은색(0)
         data[i] = color;
         data[i + 1] = color;
@@ -183,11 +183,11 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
                 startX = x;
             } else if (inDigit && colSums[x] <= 0) { // 완전한 공백에서 자르기
                 inDigit = false;
-                segments.push({startX: startX, endX: x - 1});
+                segments.push({ startX: startX, endX: x - 1 });
             }
         }
         if (inDigit) {
-            segments.push({startX: startX, endX: sw - 1});
+            segments.push({ startX: startX, endX: sw - 1 });
         }
 
         const dataUrls = [];
@@ -234,9 +234,9 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
                     const idx = (y * textW + x) * 4;
                     const color = isText[(minY + y) * sw + (minX + x)] ? 255 : 0;
                     charImgData.data[idx] = color;
-                    charImgData.data[idx+1] = color;
-                    charImgData.data[idx+2] = color;
-                    charImgData.data[idx+3] = 255;
+                    charImgData.data[idx + 1] = color;
+                    charImgData.data[idx + 2] = color;
+                    charImgData.data[idx + 3] = 255;
                 }
             }
             charCtx.putImageData(charImgData, 0, 0);
@@ -264,7 +264,7 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
         finalCanvas.width = 28;
         finalCanvas.height = 28;
         const finalCtx = finalCanvas.getContext('2d');
-        
+
         finalCtx.fillStyle = 'black';
         finalCtx.fillRect(0, 0, 28, 28);
 
@@ -283,8 +283,8 @@ export function extractBox(img, boxDef, removeBorder = false, returnMultiple = f
         const dy = (28 - targetH) / 2;
 
         finalCtx.drawImage(
-            tempCanvas, 
-            minX, minY, textW, textH, 
+            tempCanvas,
+            minX, minY, textW, textH,
             dx, dy, targetW, targetH
         );
 
@@ -323,7 +323,7 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
 
     const segmentWidth = sw / choiceCount;
     const darknessLevels = new Array(choiceCount).fill(0);
-    const threshold = 180; 
+    const threshold = 180;
 
     // OMR 동그라미 내의 픽셀만 계산 (위아래 여백 배제)
     const yStart = Math.floor(sh * 0.2);
@@ -331,9 +331,9 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
 
     for (let c = 0; c < choiceCount; c++) {
         // 좌우 여백 배제
-        const segStart = Math.floor(c * segmentWidth + segmentWidth * 0.25); 
+        const segStart = Math.floor(c * segmentWidth + segmentWidth * 0.25);
         const segEnd = Math.floor((c + 1) * segmentWidth - segmentWidth * 0.25);
-        
+
         let darkPixelCount = 0;
         let totalSegmentPixels = Math.max(1, (segEnd - segStart) * (yEnd - yStart));
 
@@ -344,13 +344,13 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
                 const g = data[idx + 1];
                 const b = data[idx + 2];
                 const avg = (r + g + b) / 3;
-                
+
                 if (avg < threshold) {
                     darkPixelCount++;
                 }
             }
         }
-        
+
         darknessLevels[c] = darkPixelCount / totalSegmentPixels;
     }
 
@@ -367,7 +367,7 @@ export async function analyzeOmrBox(img, boxDef, choiceCount) {
     // 원본 크롭 이미지는 리뷰용으로 브라우저에 표시
     const boxImage = tempCanvas.toDataURL('image/jpeg', 0.8);
     const FillThreshold = 0.20; // 20% 이상 채워졌으면 마킹으로 간주
-    
+
     if (maxDarkness > FillThreshold) {
         return {
             text: String(bestChoiceIndex + 1),
@@ -455,3 +455,182 @@ export const subjectTitleBoxDef = {
     w: 1,
     h: 20 / 297
 };
+
+// =============================================================================
+// 코너 마커 탐지 및 좌표 보정
+// =============================================================================
+
+// A4 답안지에서 마커의 이상적인 위치 (mm 단위)
+// pdf.js 기준: .marker { width: 20px, height: 20px } ≈ 7mm
+// .marker.tl { top: 15mm; left: 15mm; }  → 중심: (18.5, 18.5)
+// .marker.tr { top: 15mm; right: 15mm; } → 중심: (191.5, 18.5)
+// .marker.bl { bottom: 15mm; left: 15mm;} → 중심: (18.5, 278.5)
+// .marker.br { bottom: 15mm; right: 15mm;} → 중심: (191.5, 278.5)
+const IDEAL_MARKERS_MM = {
+    tl: { x: 18.5 / 210, y: 18.5 / 297 },
+    tr: { x: 191.5 / 210, y: 18.5 / 297 },
+    bl: { x: 18.5 / 210, y: 278.5 / 297 },
+    br: { x: 191.5 / 210, y: 278.5 / 297 },
+};
+
+/**
+ * 이미지의 4개 코너 영역에서 검은 원형 마커의 무게중심 좌표를 탐지합니다.
+ * 
+ * @param {HTMLImageElement} img
+ * @returns {{ tl, tr, bl, br } | null} 픽셀 좌표 (0~1 상대값) 또는 실패 시 null
+ */
+export function detectMarkers(img) {
+    const canvas = document.createElement('canvas');
+    // 탐지 속도를 위해 축소된 해상도로 작업
+    const scale = Math.min(1, 1200 / Math.max(img.width, img.height));
+    const w = Math.floor(img.width * scale);
+    const h = Math.floor(img.height * scale);
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+
+    // 그레이스케일 변환 + 어두운 픽셀 마스크 (임계값 80: 매우 검은 픽셀만)
+    const dark = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+        const r = data[i * 4];
+        const g = data[i * 4 + 1];
+        const b = data[i * 4 + 2];
+        const gray = r * 0.299 + g * 0.587 + b * 0.114;
+        dark[i] = gray < 80 ? 1 : 0;
+    }
+
+    /**
+     * 지정된 코너 영역(전체 이미지의 25% × 25% 구역)에서
+     * 가장 큰 어두운 픽셀 클러스터의 무게중심을 반환합니다.
+     */
+    function findMarkerInRegion(rxStart, rxEnd, ryStart, ryEnd) {
+        const xS = Math.floor(rxStart * w);
+        const xE = Math.floor(rxEnd * w);
+        const yS = Math.floor(ryStart * h);
+        const yE = Math.floor(ryEnd * h);
+
+        // BFS로 클러스터 탐지
+        const visited = new Uint8Array(w * h);
+        let bestCluster = null;
+        let bestSize = 0;
+
+        for (let py = yS; py < yE; py++) {
+            for (let px = xS; px < xE; px++) {
+                const idx = py * w + px;
+                if (!dark[idx] || visited[idx]) continue;
+
+                // BFS 시작
+                const queue = [[px, py]];
+                visited[idx] = 1;
+                let sumX = 0, sumY = 0, size = 0;
+
+                let head = 0;
+                while (head < queue.length) {
+                    const [cx, cy] = queue[head++];
+                    sumX += cx;
+                    sumY += cy;
+                    size++;
+
+                    const neighbors = [
+                        [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]
+                    ];
+                    for (const [nx, ny] of neighbors) {
+                        if (nx >= xS && nx < xE && ny >= yS && ny < yE) {
+                            const nIdx = ny * w + nx;
+                            if (dark[nIdx] && !visited[nIdx]) {
+                                visited[nIdx] = 1;
+                                queue.push([nx, ny]);
+                            }
+                        }
+                    }
+                }
+
+                if (size > bestSize) {
+                    bestSize = size;
+                    bestCluster = { x: sumX / size, y: sumY / size, size };
+                }
+            }
+        }
+
+        // 클러스터가 너무 작으면 노이즈로 간주 (최소 픽셀 수: 20)
+        if (!bestCluster || bestCluster.size < 20) return null;
+
+        // 이미지 전체 기준 상대 좌표(0~1)로 변환
+        return {
+            x: bestCluster.x / w,
+            y: bestCluster.y / h,
+        };
+    }
+
+    // 각 코너 구역에서 마커 탐지 (이미지의 25% 구역씩)
+    const tl = findMarkerInRegion(0, 0.25, 0, 0.25);
+    const tr = findMarkerInRegion(0.75, 1, 0, 0.25);
+    const bl = findMarkerInRegion(0, 0.25, 0.75, 1);
+    const br = findMarkerInRegion(0.75, 1, 0.75, 1);
+
+    if (!tl || !tr || !bl || !br) {
+        console.warn('[마커 탐지] 일부 마커를 찾지 못했습니다:', { tl, tr, bl, br });
+        return null;
+    }
+
+    console.log('[마커 탐지 성공]', { tl, tr, bl, br });
+    return { tl, tr, bl, br };
+}
+
+/**
+ * 탐지된 마커 좌표를 기반으로 OMR 박스 정의를 보정합니다.
+ * 
+ * 원리: 두 좌표계(이상적 마커 위치 <-> 탐지된 마커 위치) 사이의
+ * 쌍선형 보간(bilinear interpolation)으로 임의의 좌표를 변환합니다.
+ * 
+ * @param {Object} boxDef - { x, y, w, h } 상대 좌표 (기존 하드코딩)
+ * @param {{ tl, tr, bl, br }} markers - detectMarkers() 반환값
+ * @returns {Object} 보정된 { x, y, w, h }
+ */
+export function applyMarkerCorrection(boxDef, markers) {
+    const ideal = IDEAL_MARKERS_MM;
+
+    /**
+     * 쌍선형 보간: 이상적 좌표계의 점 (px, py)를
+     * 탐지된 마커 좌표계로 변환합니다.
+     */
+    function transformPoint(px, py) {
+        // 이상적 마커 사각형 기준 내 상대 위치 계산
+        const idealW = ideal.tr.x - ideal.tl.x;
+        const idealH = ideal.bl.y - ideal.tl.y;
+
+        const u = (px - ideal.tl.x) / idealW; // 0~1 (좌→우)
+        const v = (py - ideal.tl.y) / idealH; // 0~1 (위→아래)
+
+        // 쌍선형 보간으로 탐지된 마커 좌표계 위치 계산
+        const x =
+            (1 - u) * (1 - v) * markers.tl.x +
+            u * (1 - v) * markers.tr.x +
+            (1 - u) * v * markers.bl.x +
+            u * v * markers.br.x;
+
+        const y =
+            (1 - u) * (1 - v) * markers.tl.y +
+            u * (1 - v) * markers.tr.y +
+            (1 - u) * v * markers.bl.y +
+            u * v * markers.br.y;
+
+        return { x, y };
+    }
+
+    // 박스의 네 꼭짓점을 변환
+    const topLeft = transformPoint(boxDef.x, boxDef.y);
+    const topRight = transformPoint(boxDef.x + boxDef.w, boxDef.y);
+    const bottomLeft = transformPoint(boxDef.x, boxDef.y + boxDef.h);
+
+    return {
+        x: topLeft.x,
+        y: topLeft.y,
+        w: topRight.x - topLeft.x,
+        h: bottomLeft.y - topLeft.y,
+    };
+}

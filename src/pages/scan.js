@@ -1,5 +1,5 @@
 import { getSettings, getStudents, saveScanResult } from '../store.js';
-import { loadImageFromFile, extractBox, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef } from '../utils/imageProcess.js';
+import { loadImageFromFile, extractBox, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef, detectMarkers, applyMarkerCorrection } from '../utils/imageProcess.js';
 import { initTesseract, recognizeWord, terminateTesseract } from '../utils/ocr.js';
 
 export async function renderScan(container, settings) {
@@ -157,17 +157,26 @@ export async function renderScan(container, settings) {
       try {
         const img = await loadImageFromFile(file);
 
-        // 1. 전체 헤더 영역 OCR 추출 (과목명, 번호 등 식별)
-        const headerDataUrl = extractBox(img, headerBoxDef, false, false, true);
+        // 1-A. 코너 마커 탐지 (좌표 보정을 위해 먼저 실행)
+        const markers = detectMarkers(img);
+        if (markers) {
+          logMsg('✔ 코너 마커 탐지 성공 (좌표 보정 적용)');
+        } else {
+          logMsg('⚠️ 코너 마커 탐지 실패 → 기본 좌표로 인식합니다 (종이가 많이 기울어졌거나 마커가 잘렸을 수 있습니다)');
+        }
+
+        // 1-B. 전체 헤더 영역 OCR 추출 (과목명, 번호 등 식별)
+        const headerBoxCorrected = markers ? applyMarkerCorrection(headerBoxDef, markers) : headerBoxDef;
+        const headerDataUrl = extractBox(img, headerBoxCorrected, false, false, true);
         const { text: headerText, confidence: headerConf } = await recognizeWord(headerDataUrl);
-        
+
         let pNum = 0;
         let identifiedStudent = null;
         let targetSubject = settings.subjects[0]; // 기본값
 
         if (headerText) {
           logMsg(`[OCR 헤더 식별중] 추출 텍스트: ${headerText}`);
-          
+
           // 학번 추출 (정규식: '번호', '과목', ':', 숫자 등 유연하게 매칭)
           // 공백이 제거된 상태이므로 "번호:12" 또는 "번호12" 형태가 됩니다.
           const numMatch = headerText.match(/번[호]?[:;ㅣ\-\_]*(\d+)/) || headerText.match(/(\d+)/);
@@ -180,8 +189,8 @@ export async function renderScan(container, settings) {
           for (let sub of settings.subjects) {
             // 텍스트에 과목명이 포함되어있다면 해당 과목으로 식별
             if (headerText.includes(sub.name)) {
-                targetSubject = sub;
-                break;
+              targetSubject = sub;
+              break;
             }
           }
         }
@@ -208,7 +217,9 @@ export async function renderScan(container, settings) {
 
         const qCount = targetSubject.questionCount;
         for (let q = 1; q <= qCount; q++) {
-          const boxDef = subjectBoxDefs[q];
+          const rawBoxDef = subjectBoxDefs[q];
+          // 마커가 탐지된 경우 좌표 보정 적용, 아니면 기존 하드코딩 좌표 사용
+          const boxDef = markers ? applyMarkerCorrection(rawBoxDef, markers) : rawBoxDef;
           // OMR 방식으로 답안 추출
           const omrRes = await analyzeOmrBox(img, boxDef, settings.choiceCount);
 
@@ -237,11 +248,11 @@ export async function renderScan(container, settings) {
 
       } catch (err) {
         if (err.message.includes('API 키')) {
-            logMsg(`<span style="color:var(--danger-color)">❌ 중단됨: ${err.message}</span>`);
-            break; // API키가 없으면 나머지 파일도 시도 안 함
+          logMsg(`<span style="color:var(--danger-color)">❌ 중단됨: ${err.message}</span>`);
+          break; // API키가 없으면 나머지 파일도 시도 안 함
         } else {
-            console.error(err);
-            logMsg(`❌ 오류 발생 (${file.name}): ${err.message}`);
+          console.error(err);
+          logMsg(`❌ 오류 발생 (${file.name}): ${err.message}`);
         }
       }
     }
