@@ -30,7 +30,7 @@ export async function renderAnswerSheet(container, settings) {
   };
 
   window.handlePrintIndividual = (studentId) => {
-    const student = sortedStudents.find(s => s.id === studentId);
+    const student = sortedStudents.find(s => String(s.id) === String(studentId));
     if (!student) return;
     
     const subjectSelect = document.getElementById('print-subject-select');
