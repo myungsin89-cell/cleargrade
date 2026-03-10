@@ -406,11 +406,12 @@ export function getQuestionBoxDefs(settings) {
             // `q-num` text is width 10mm + 2mm margin (approx 12-14 mm offset).
             const colGap = 5; // CSS .q-grid column-gap: 5mm
             const boxW = 10 * settings.choiceCount; // Box width scales with choiceCount, expanded from 8.5mm to 10mm
-            const boxH = 12; // Height expanded from 9mm to 12mm for better padding
+            const boxH = 14; // 14mm: q-item 10mm + 상하 여유 2mm씩
 
-            // Adjust offsets to keep circles roughly centered in the now-larger box
-            const boxStartX = startX + (col * (colW + colGap)) + 14 - (1.5 * (settings.choiceCount / 5)); // Shift left slightly based on scale
-            const boxStartY = startY + (row * rowH) + 4.0; // Shifted down (from -1.0 to +4.0) to center numbers vertically
+            // 각 q-item의 높이는 10mm, 중심은 row 시작 + 5mm
+            // boxH=14mm이면 위로 2mm 올려야 중심이 맞음: 5 - 7 = -2 → 약 -1~-2 사용
+            const boxStartX = startX + (col * (colW + colGap)) + 14 - (1.5 * (settings.choiceCount / 5));
+            const boxStartY = startY + (row * rowH) - 2.0; // q-item 중심(+5mm) 기준 boxH/2 만큼 위로
 
             defs[subject.id][i] = {
                 x: boxStartX / A4_W,
