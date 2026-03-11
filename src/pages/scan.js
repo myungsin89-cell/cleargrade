@@ -1,6 +1,44 @@
 import { getSettings, getStudents, saveScanResult } from '../store.js';
-import { loadImageFromFile, extractBox, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef, detectMarkers, applyMarkerCorrection } from '../utils/imageProcess.js';
+import { loadImageFromFile, extractBox, extractHeaderForOcr, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef, detectMarkers, applyMarkerCorrection } from '../utils/imageProcess.js';
 import { initTesseract, recognizeWord, terminateTesseract } from '../utils/ocr.js';
+
+// ── 한글 자모 분해 및 과목 유사도 점수 계산 (모듈 레벨) ──────────────────────
+function decomposeHangul(str) {
+  const CHO = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+  const JUNG = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ'];
+  const JONG = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+  const result = [];
+  for (const ch of str) {
+    const code = ch.charCodeAt(0);
+    if (code >= 0xAC00 && code <= 0xD7A3) {
+      const offset = code - 0xAC00;
+      result.push(CHO[Math.floor(offset / (21 * 28))]);
+      result.push(JUNG[Math.floor((offset % (21 * 28)) / 28)]);
+      const jong = JONG[offset % 28];
+      if (jong) result.push(jong);
+    } else {
+      result.push(ch);
+    }
+  }
+  return result;
+}
+
+/**
+ * OCR 텍스트와 과목명 사이의 자모 일치율 계산 (0~1)
+ * OCR 오인식에 강인: 단순 includes() 대신 자모 개수 기반 점수 사용
+ */
+function scoreSubjectMatch(ocrText, subjectName) {
+  const textJamo = decomposeHangul(ocrText);
+  const nameJamo = decomposeHangul(subjectName);
+  if (nameJamo.length === 0) return 0;
+  let matched = 0;
+  const remaining = [...textJamo];
+  for (const jamo of nameJamo) {
+    const idx = remaining.indexOf(jamo);
+    if (idx !== -1) { matched++; remaining.splice(idx, 1); }
+  }
+  return matched / nameJamo.length;
+}
 
 export async function renderScan(container, settings) {
   const students = await getStudents();
@@ -166,8 +204,9 @@ export async function renderScan(container, settings) {
         }
 
         // 1-B. 전체 헤더 영역 OCR 추출 (과목명, 번호 등 식별)
+        // extractHeaderForOcr: 이진화 전처리로 Tesseract 인식률 향상
         const headerBoxCorrected = markers ? applyMarkerCorrection(headerBoxDef, markers) : headerBoxDef;
-        const headerDataUrl = extractBox(img, headerBoxCorrected, false, false, true);
+        const headerDataUrl = extractHeaderForOcr(img, headerBoxCorrected);
         const { text: headerText, confidence: headerConf } = await recognizeWord(headerDataUrl);
 
         let pNum = 0;
@@ -185,12 +224,24 @@ export async function renderScan(container, settings) {
             identifiedStudent = students.find(s => s.number === pNum);
           }
 
-          // 과목 추출 (settings.subjects 의 name 중 매칭되는 것이 있는지 확인)
-          for (let sub of settings.subjects) {
-            // 텍스트에 과목명이 포함되어있다면 해당 과목으로 식별
-            if (headerText.includes(sub.name)) {
-              targetSubject = sub;
-              break;
+          // 과목 추출: 자모 유사도 점수 기반 최선 매칭 (모듈 레벨 함수 사용)
+          {
+            let bestScore = 0;
+            let bestSub = null;
+            for (const sub of settings.subjects) {
+              const score = scoreSubjectMatch(headerText, sub.name);
+              logMsg(`  [과목후보] ${sub.name}: 유사도 ${(score * 100).toFixed(0)}%`);
+              if (score > bestScore) {
+                bestScore = score;
+                bestSub = sub;
+              }
+            }
+            // 75% 이상 일치하면 확정, 미달이면 최선 후보를 사용하되 경고 출력
+            if (bestSub && bestScore >= 0.75) {
+              targetSubject = bestSub;
+            } else {
+              logMsg(`[경고] 과목 신뢰도 낮음(최고: ${bestSub?.name} ${(bestScore * 100).toFixed(0)}%) → 검수 화면에서 확인 필요`);
+              targetSubject = bestSub || settings.subjects[0];
             }
           }
         }

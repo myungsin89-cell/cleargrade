@@ -24,13 +24,94 @@ export function loadImageFromFile(file) {
 }
 
 /**
- * 이미지에서 특정 상대적 좌표 영역을 잘라내고 MNIST 전처리(28x28, 흑백 반전, 패딩, 대비증가)를 수행합니다.
+ * OCR 전용: 헤더 전체 영역을 잘라내고 Tesseract 인식에 최적화된 이진화 이미지를 반환합니다.
+ * rawImage 방식(컬러 원본)보다 OCR 정확도가 높습니다.
  * 
+ * @param {HTMLImageElement} img - 원본 스캔 이미지
+ * @param {Object} boxDef - { x, y, w, h } 상대적 좌표 (0~1 비율)
+ * @returns {String} DataURL (이진화된 헤더 이미지)
+ */
+export function extractHeaderForOcr(img, boxDef) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const imgW = img.width;
+    const imgH = img.height;
+
+    const sx = Math.floor(boxDef.x * imgW);
+    const sy = Math.floor(boxDef.y * imgH);
+    const sw = Math.floor(boxDef.w * imgW);
+    const sh = Math.floor(boxDef.h * imgH);
+
+    canvas.width = sw;
+    canvas.height = sh;
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    const imageData = ctx.getImageData(0, 0, sw, sh);
+    const data = imageData.data;
+
+    // 그레이스케일 변환
+    const grays = new Float32Array(sw * sh);
+    let minG = 255, maxG = 0;
+    for (let i = 0; i < data.length; i += 4) {
+        const g = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        grays[i / 4] = g;
+        if (g < minG) minG = g;
+        if (g > maxG) maxG = g;
+    }
+
+    // 대비 스트레칭 (어두운 글씨를 선명하게)
+    const range = maxG - minG;
+    if (range > 20) {
+        for (let i = 0; i < grays.length; i++) {
+            grays[i] = Math.min(255, Math.max(0, ((grays[i] - minG) / range) * 255));
+        }
+    }
+
+    // Otsu 임계값으로 이진화 (밝은 배경 = 흰색, 어두운 텍스트 = 검정)
+    // 히스토그램 계산
+    const hist = new Int32Array(256);
+    for (let i = 0; i < grays.length; i++) hist[Math.round(grays[i])]++;
+    const total = grays.length;
+    let sumB = 0, wB = 0, sum = 0;
+    for (let i = 0; i < 256; i++) sum += i * hist[i];
+    let maxVar = 0, threshold = 128;
+    for (let t = 0; t < 256; t++) {
+        wB += hist[t];
+        if (wB === 0) continue;
+        const wF = total - wB;
+        if (wF === 0) break;
+        sumB += t * hist[t];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const v = wB * wF * (mB - mF) * (mB - mF);
+        if (v > maxVar) { maxVar = v; threshold = t; }
+    }
+
+    // Tesseract는 밝은 배경 + 어두운 텍스트를 선호
+    for (let i = 0; i < data.length; i += 4) {
+        const isText = grays[i / 4] < threshold;
+        const color = isText ? 0 : 255; // 텍스트=검정, 배경=흰색
+        data[i] = color;
+        data[i + 1] = color;
+        data[i + 2] = color;
+        data[i + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    return canvas.toDataURL('image/png');
+}
+
+
+
+/**
+ * 이미지에서 특정 상대적 좌표 영역을 잘라내고 MNIST 전처리(28x28, 흑백 반전, 패딩, 대비증가)를 수행합니다.
  * @param {HTMLImageElement} img - 원본 스캔 이미지
  * @param {Object} boxDef - { x, y, w, h } 상대적 좌표 (0~1 비율)
  * @returns {String | Array<String>} DataURL (28x28 이미지) 또는 다중 숫자 분할 시 URL 배열
  */
 export function extractBox(img, boxDef, removeBorder = false, returnMultiple = false, rawImage = false) {
+
     // 1. 원본 이미지에서 박스 영역 잘라내기
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
