@@ -620,14 +620,14 @@ export function detectMarkers(img) {
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
 
-    // 그레이스케일 변환 + 어두운 픽셀 마스크 (임계값 80: 매우 검은 픽셀만)
+    // 그레이스케일 변환 + 어두운 픽셀 마스크 (임계값 120: 스캔/촬영 시 회색빛 마커도 감지)
     const dark = new Uint8Array(w * h);
     for (let i = 0; i < w * h; i++) {
         const r = data[i * 4];
         const g = data[i * 4 + 1];
         const b = data[i * 4 + 2];
         const gray = r * 0.299 + g * 0.587 + b * 0.114;
-        dark[i] = gray < 80 ? 1 : 0;
+        dark[i] = gray < 120 ? 1 : 0;
     }
 
     /**
@@ -683,8 +683,8 @@ export function detectMarkers(img) {
             }
         }
 
-        // 클러스터가 너무 작으면 노이즈로 간주 (최소 픽셀 수: 80으로 상향)
-        if (!bestCluster || bestCluster.size < 80) return null;
+        // 클러스터가 너무 작으면 노이즈로 간주 (최소 30픽셀 — 저해상도에서도 감지)
+        if (!bestCluster || bestCluster.size < 30) return null;
 
         // 이미지 전체 기준 상대 좌표(0~1)로 변환
         return {
@@ -701,7 +701,9 @@ export function detectMarkers(img) {
     const br = findMarkerInRegion(0.80, 1, 0.80, 1);
 
     if (!tl || !tr || !bl || !br) {
-        console.warn('[마커 탐지] 일부 마커를 찾지 못했습니다:', { tl, tr, bl, br });
+        console.warn('[마커 탐지] 일부 마커를 찾지 못했습니다:',
+            `TL:${tl ? tl.size + 'px' : '✗'}, TR:${tr ? tr.size + 'px' : '✗'}, BL:${bl ? bl.size + 'px' : '✗'}, BR:${br ? br.size + 'px' : '✗'}`,
+            `(이미지 ${w}x${h}px)`);
         return null;
     }
 
@@ -718,10 +720,10 @@ export function detectMarkers(img) {
 
     const aspectRatio = markerW / markerH;
     const EXPECTED_RATIO = 173 / 260; // ≈ 0.665
-    const RATIO_TOLERANCE = 0.15; // ±15% 허용
+    const RATIO_TOLERANCE = 0.25; // ±25% 허용 (촬영 각도 왜곡 대응)
 
     if (Math.abs(aspectRatio - EXPECTED_RATIO) > RATIO_TOLERANCE) {
-        console.warn(`[마커 탐지] 비율 불일치 (탐지 ${aspectRatio.toFixed(3)}, 기대 ${EXPECTED_RATIO.toFixed(3)}). 폴백.`);
+        console.warn(`[마커 탐지] 비율 불일치 (탐지 ${aspectRatio.toFixed(3)}, 기대 ${EXPECTED_RATIO.toFixed(3)}, 허용 ±${(RATIO_TOLERANCE * 100).toFixed(0)}%). 폴백.`);
         return null;
     }
 
