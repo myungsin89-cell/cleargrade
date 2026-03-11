@@ -1,5 +1,5 @@
 import { getSettings, getStudents, saveScanResult } from '../store.js';
-import { loadImageFromFile, extractBox, extractHeaderForOcr, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef, detectMarkers, applyMarkerCorrection } from '../utils/imageProcess.js';
+import { loadImageFromFile, extractBox, extractHeaderForOcr, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef, subjectTitleBoxDef, detectMarkers, applyMarkerCorrection } from '../utils/imageProcess.js';
 import { initTesseract, recognizeWord, terminateTesseract } from '../utils/ocr.js';
 
 // ── 한글 자모 분해 및 과목 유사도 점수 계산 (모듈 레벨) ──────────────────────
@@ -203,8 +203,12 @@ export async function renderScan(container, settings) {
           logMsg('⚠️ 코너 마커 탐지 실패 → 기본 좌표로 인식합니다 (종이가 많이 기울어졌거나 마커가 잘렸을 수 있습니다)');
         }
 
-        // 1-B. 전체 헤더 영역 OCR 추출 (과목명, 번호 등 식별)
-        // extractHeaderForOcr: 이진화 전처리로 Tesseract 인식률 향상
+        // 1-B. 과목 식별: 제목(h1) 영역만 별도 크롭하여 OCR (과목명+시험명만 포함)
+        const titleBoxCorrected = markers ? applyMarkerCorrection(subjectTitleBoxDef, markers) : subjectTitleBoxDef;
+        const titleDataUrl = extractHeaderForOcr(img, titleBoxCorrected);
+        const { text: titleText, confidence: titleConf } = await recognizeWord(titleDataUrl);
+
+        // 1-C. 전체 헤더 영역 OCR 추출 (학번, 이름 식별용)
         const headerBoxCorrected = markers ? applyMarkerCorrection(headerBoxDef, markers) : headerBoxDef;
         const headerDataUrl = extractHeaderForOcr(img, headerBoxCorrected);
         const { text: headerText, confidence: headerConf } = await recognizeWord(headerDataUrl);
@@ -213,36 +217,56 @@ export async function renderScan(container, settings) {
         let identifiedStudent = null;
         let targetSubject = settings.subjects[0]; // 기본값
 
-        if (headerText) {
-          logMsg(`[OCR 헤더 식별중] 추출 텍스트: ${headerText}`);
+        // ── 과목 식별 (제목 영역 OCR 기반) ──
+        if (titleText) {
+          logMsg(`[OCR 제목] 추출 텍스트: "${titleText}" (신뢰도: ${titleConf}%)`);
 
-          // 학번 추출 (정규식: '번호', '과목', ':', 숫자 등 유연하게 매칭)
-          // 공백이 제거된 상태이므로 "번호:12" 또는 "번호12" 형태가 됩니다.
-          const numMatch = headerText.match(/번[호]?[:;ㅣ\-\_]*(\d+)/) || headerText.match(/(\d+)/);
-          if (numMatch && numMatch[1]) {
-            pNum = parseInt(numMatch[1], 10);
-            identifiedStudent = students.find(s => s.number === pNum);
+          // 1차: 정확 매칭 (includes) — 모든 과목을 검사하고 매칭되는 것 선택
+          let matchedSubs = [];
+          for (const sub of settings.subjects) {
+            if (titleText.includes(sub.name)) {
+              matchedSubs.push(sub);
+            }
           }
 
-          // 과목 추출: 자모 유사도 점수 기반 최선 매칭 (모듈 레벨 함수 사용)
-          {
+          if (matchedSubs.length === 1) {
+            // 정확히 하나만 매칭 → 확정
+            targetSubject = matchedSubs[0];
+          } else if (matchedSubs.length > 1) {
+            // 여러 개 매칭 (예: 유사한 과목명) → 가장 긴 이름을 우선
+            matchedSubs.sort((a, b) => b.name.length - a.name.length);
+            targetSubject = matchedSubs[0];
+          } else {
+            // 2차: 정확 매칭 실패 → 자모 유사도 폴백 (제목 텍스트만 대상이라 짧음)
+            logMsg(`[과목] 제목에서 정확 매칭 실패 → 자모 유사도 비교`);
             let bestScore = 0;
             let bestSub = null;
             for (const sub of settings.subjects) {
-              const score = scoreSubjectMatch(headerText, sub.name);
+              const score = scoreSubjectMatch(titleText, sub.name);
               logMsg(`  [과목후보] ${sub.name}: 유사도 ${(score * 100).toFixed(0)}%`);
               if (score > bestScore) {
                 bestScore = score;
                 bestSub = sub;
               }
             }
-            // 75% 이상 일치하면 확정, 미달이면 최선 후보를 사용하되 경고 출력
             if (bestSub && bestScore >= 0.75) {
               targetSubject = bestSub;
             } else {
               logMsg(`[경고] 과목 신뢰도 낮음(최고: ${bestSub?.name} ${(bestScore * 100).toFixed(0)}%) → 검수 화면에서 확인 필요`);
               targetSubject = bestSub || settings.subjects[0];
             }
+          }
+        } else {
+          logMsg(`[경고] 제목 영역 OCR 실패 — 기본 과목(${targetSubject.name})으로 진행`);
+        }
+
+        // ── 학번 식별 (전체 헤더 OCR 기반) ──
+        if (headerText) {
+          logMsg(`[OCR 헤더] 추출 텍스트: ${headerText}`);
+          const numMatch = headerText.match(/번[호]?[:;ㅣ\-\_]*(\d+)/) || headerText.match(/(\d+)/);
+          if (numMatch && numMatch[1]) {
+            pNum = parseInt(numMatch[1], 10);
+            identifiedStudent = students.find(s => s.number === pNum);
           }
         }
 
