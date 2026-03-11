@@ -631,19 +631,23 @@ export function detectMarkers(img) {
     }
 
     /**
-     * 지정된 코너 영역(전체 이미지의 25% × 25% 구역)에서
-     * 가장 큰 어두운 픽셀 클러스터의 무게중심을 반환합니다.
+     * 지정된 코너 영역에서 해당 코너 꼭짓점에 가장 가까운 어두운 클러스터를 반환합니다.
+     * 기존: "가장 큰" 클러스터 → 텍스트/OMR이 마커보다 커서 실패
+     * 변경: "코너에 가장 가까운" 적절한 크기의 클러스터 → 마커를 정확히 선택
      */
-    function findMarkerInRegion(rxStart, rxEnd, ryStart, ryEnd) {
+    function findMarkerInRegion(rxStart, rxEnd, ryStart, ryEnd, cornerX, cornerY) {
         const xS = Math.floor(rxStart * w);
         const xE = Math.floor(rxEnd * w);
         const yS = Math.floor(ryStart * h);
         const yE = Math.floor(ryEnd * h);
 
-        // BFS로 클러스터 탐지
+        // 코너 꼭짓점 (픽셀 좌표)
+        const cxPx = cornerX * w;
+        const cyPx = cornerY * h;
+
+        // BFS로 모든 클러스터 탐지
         const visited = new Uint8Array(w * h);
-        let bestCluster = null;
-        let bestSize = 0;
+        const clusters = [];
 
         for (let py = yS; py < yE; py++) {
             for (let px = xS; px < xE; px++) {
@@ -676,29 +680,37 @@ export function detectMarkers(img) {
                     }
                 }
 
-                if (size > bestSize) {
-                    bestSize = size;
-                    bestCluster = { x: sumX / size, y: sumY / size, size };
+                // 최소 크기 이상의 클러스터만 후보로 저장
+                if (size >= 30) {
+                    const centX = sumX / size;
+                    const centY = sumY / size;
+                    const dist = Math.sqrt((centX - cxPx) ** 2 + (centY - cyPx) ** 2);
+                    clusters.push({ x: centX, y: centY, size, dist });
                 }
             }
         }
 
-        // 클러스터가 너무 작으면 노이즈로 간주 (최소 30픽셀 — 저해상도에서도 감지)
-        if (!bestCluster || bestCluster.size < 30) return null;
+        if (clusters.length === 0) return null;
+
+        // 코너에 가장 가까운 클러스터 선택
+        clusters.sort((a, b) => a.dist - b.dist);
+        const best = clusters[0];
+
+        console.log(`[마커] 코너(${cornerX},${cornerY}): ${clusters.length}개 후보 중 최근접 선택 (dist=${best.dist.toFixed(0)}px, size=${best.size}px)`);
 
         // 이미지 전체 기준 상대 좌표(0~1)로 변환
         return {
-            x: bestCluster.x / w,
-            y: bestCluster.y / h,
-            size: bestCluster.size,
+            x: best.x / w,
+            y: best.y / h,
+            size: best.size,
         };
     }
 
-    // 각 코너 구역에서 마커 탐지 (이미지의 20% 구역씩 - 더 좁은 범위로 정확도 향상)
-    const tl = findMarkerInRegion(0, 0.20, 0, 0.20);
-    const tr = findMarkerInRegion(0.80, 1, 0, 0.20);
-    const bl = findMarkerInRegion(0, 0.20, 0.80, 1);
-    const br = findMarkerInRegion(0.80, 1, 0.80, 1);
+    // 각 코너 구역에서 마커 탐지 — 코너 꼭짓점에 가장 가까운 클러스터 선택
+    const tl = findMarkerInRegion(0, 0.25, 0, 0.25, 0, 0);
+    const tr = findMarkerInRegion(0.75, 1, 0, 0.25, 1, 0);
+    const bl = findMarkerInRegion(0, 0.25, 0.75, 1, 0, 1);
+    const br = findMarkerInRegion(0.75, 1, 0.75, 1, 1, 1);
 
     if (!tl || !tr || !bl || !br) {
         console.warn('[마커 탐지] 일부 마커를 찾지 못했습니다:',
