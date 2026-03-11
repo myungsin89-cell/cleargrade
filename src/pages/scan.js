@@ -1,6 +1,6 @@
 import { getSettings, getStudents, saveScanResult } from '../store.js';
-import { loadImageFromFile, extractBox, extractHeaderForOcr, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef, subjectTitleBoxDef, detectMarkers, applyMarkerCorrection } from '../utils/imageProcess.js';
-import { initTesseract, recognizeWord, terminateTesseract } from '../utils/ocr.js';
+import { loadImageFromFile, extractBox, analyzeOmrBox, getQuestionBoxDefs, headerBoxDef, subjectTitleBoxDef, detectMarkers, applyMarkerCorrection } from '../utils/imageProcess.js';
+import { initTesseract, recognizeWord, recognizeTitle, terminateTesseract } from '../utils/ocr.js';
 
 // ── 한글 자모 분해 및 과목 유사도 점수 계산 (모듈 레벨) ──────────────────────
 function decomposeHangul(str) {
@@ -203,14 +203,15 @@ export async function renderScan(container, settings) {
           logMsg('⚠️ 코너 마커 탐지 실패 → 기본 좌표로 인식합니다 (종이가 많이 기울어졌거나 마커가 잘렸을 수 있습니다)');
         }
 
-        // 1-B. 과목 식별: 제목(h1) 영역만 별도 크롭하여 OCR (과목명+시험명만 포함)
+        // 1-B. 과목 식별: 제목(h1) 영역만 별도 크롭 → recognizeTitle (SINGLE_LINE 모드)
+        // removeBorder=true: 가장자리 15% 마진 잘라내기 비활성화 (글자 잘림 방지)
         const titleBoxCorrected = markers ? applyMarkerCorrection(subjectTitleBoxDef, markers) : subjectTitleBoxDef;
-        const titleDataUrl = extractHeaderForOcr(img, titleBoxCorrected);
-        const { text: titleText, confidence: titleConf } = await recognizeWord(titleDataUrl);
+        const titleDataUrl = extractBox(img, titleBoxCorrected, true, false, true);
+        const { text: titleText, confidence: titleConf } = await recognizeTitle(titleDataUrl);
 
-        // 1-C. 전체 헤더 영역 OCR 추출 (학번, 이름 식별용)
+        // 1-C. 전체 헤더 영역 OCR 추출 (학번, 이름 식별용) — 원본 이미지, 마진 없이
         const headerBoxCorrected = markers ? applyMarkerCorrection(headerBoxDef, markers) : headerBoxDef;
-        const headerDataUrl = extractHeaderForOcr(img, headerBoxCorrected);
+        const headerDataUrl = extractBox(img, headerBoxCorrected, true, false, true);
         const { text: headerText, confidence: headerConf } = await recognizeWord(headerDataUrl);
 
         let pNum = 0;

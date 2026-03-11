@@ -14,7 +14,7 @@ export async function initTesseract() {
         console.log('[OCR] Tesseract.js 로컬 엔진 초기화 중...');
         worker = await Tesseract.createWorker('kor+eng', 1, {
             logger: m => {
-               // console.log(m); // 진행률 확인하고 싶을 때 주석 해제
+                // console.log(m); // 진행률 확인하고 싶을 때 주석 해제
             }
         });
         // 인식 최적화: 문서(단일 블록) 모드로 설정
@@ -58,6 +58,36 @@ export async function recognizeWord(dataUrl) {
         };
     } catch (e) {
         console.error('[OCR] Tesseract 처리 실패', e);
+        return { text: '', confidence: 0 };
+    }
+}
+
+/**
+ * 제목 전용 인식 (과목명 + 시험명).
+ * PSM을 SINGLE_LINE으로 임시 전환하여 한 줄 텍스트에 최적화.
+ * @param {string} dataUrl - 크롭된 제목 영역 DataURL 이미지
+ * @returns {Promise<{text: string, confidence: number}>}
+ */
+export async function recognizeTitle(dataUrl) {
+    if (!worker) {
+        console.warn('Tesseract Worker가 초기화되지 않았습니다.');
+        return { text: '', confidence: 0 };
+    }
+
+    try {
+        // 제목은 한 줄이므로 SINGLE_LINE 모드가 더 정확
+        await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SINGLE_LINE });
+        const { data: { text, confidence } } = await worker.recognize(dataUrl);
+        // 원래 모드로 복원
+        await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK });
+
+        let recognizedText = text.trim().replace(/[\s\n\r]/g, '');
+        return {
+            text: recognizedText,
+            confidence: confidence
+        };
+    } catch (e) {
+        console.error('[OCR] 제목 인식 실패', e);
         return { text: '', confidence: 0 };
     }
 }
